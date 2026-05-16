@@ -64,6 +64,7 @@ export interface Sale extends SaleItems, SaleTotals {
 export interface SaleFormData extends SaleItems {
   customerId: string;
   customerName: string;
+  saleDate?: string;
 }
 
 // ---------- Dashboard ----------

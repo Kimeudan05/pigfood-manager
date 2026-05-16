@@ -60,6 +60,19 @@ export default function ReportsPage() {
     })).filter(p => p.value > 0);
   }, [filteredSales]);
 
+  // Top Customers by Spending
+  const topCustomersData = useMemo(() => {
+    const map = new Map<string, { name: string; spent: number }>();
+    filteredSales.forEach(s => {
+      const existing = map.get(s.customerId) || { name: s.customerName, spent: 0 };
+      existing.spent += s.grandTotal || 0;
+      map.set(s.customerId, existing);
+    });
+    return Array.from(map.values())
+      .sort((a, b) => b.spent - a.spent)
+      .slice(0, 5); // Top 5
+  }, [filteredSales]);
+
   const totalRevenue = filteredSales.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
   const avgSale = filteredSales.length > 0 ? totalRevenue / filteredSales.length : 0;
 
@@ -158,27 +171,48 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* Product Distribution */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
-            <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Product Distribution</h3>
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={productData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={40} paddingAngle={2}>
-                    {productData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: any) => [v, "Units"]} />
-                </PieChart>
-              </ResponsiveContainer>
+          <div className="space-y-4">
+            {/* Product Distribution */}
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
+              <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Product Distribution</h3>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={productData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={35} paddingAngle={2}>
+                      {productData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: any) => [v, "Units"]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-2 space-y-1">
+                {productData.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: p.color }} />
+                    <span className="text-gray-600 dark:text-gray-300">{p.name}</span>
+                    <span className="ml-auto font-medium text-gray-900 dark:text-white">{p.value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="mt-2 space-y-1">
-              {productData.map((p, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs">
-                  <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: p.color }} />
-                  <span className="text-gray-600 dark:text-gray-300">{p.name}</span>
-                  <span className="ml-auto font-medium text-gray-900 dark:text-white">{p.value}</span>
-                </div>
-              ))}
+
+            {/* Top Customers */}
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
+              <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Top Customers</h3>
+              <div className="space-y-3">
+                {topCustomersData.map((c, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs font-bold">
+                        #{i + 1}
+                      </div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[120px]" title={c.name}>{c.name}</p>
+                    </div>
+                    <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(c.spent)}</p>
+                  </div>
+                ))}
+                {topCustomersData.length === 0 && <p className="text-xs text-gray-500">No data</p>}
+              </div>
             </div>
           </div>
         </div>

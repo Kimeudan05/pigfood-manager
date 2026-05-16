@@ -102,7 +102,7 @@ export async function addSale(data: SaleFormData, userId: string): Promise<strin
     ...items,
     ...totals,
     createdBy: userId,
-    createdAt: serverTimestamp(),
+    createdAt: data.saleDate ? Timestamp.fromDate(new Date(data.saleDate)) : serverTimestamp(),
   });
 
   return docRef.id;

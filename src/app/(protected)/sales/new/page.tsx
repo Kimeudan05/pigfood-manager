@@ -9,7 +9,7 @@ import { PRODUCTS, calculateTotals, getEmptySaleItems } from "@/utils/pricing";
 import { formatCurrency } from "@/utils/formatters";
 import { PageSpinner } from "@/components/ui/Spinner";
 import Spinner from "@/components/ui/Spinner";
-import { ArrowLeft, ShoppingCart, Minus, Plus } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Minus, Plus, Search, UserPlus } from "lucide-react";
 import Link from "next/link";
 
 export default function NewSalePage() {
@@ -21,7 +21,10 @@ export default function NewSalePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState(searchParams.get("customerId") || "");
+  const [saleDate, setSaleDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [items, setItems] = useState<SaleItems>(getEmptySaleItems());
+  const [customerSearch, setCustomerSearch] = useState(searchParams.get("customerName") || "");
+  const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
     getAllCustomers().then(setCustomers).catch(() => addToast("error", "Failed to load customers")).finally(() => setLoading(false));
@@ -55,6 +58,7 @@ export default function NewSalePage() {
       const data: SaleFormData = {
         customerId: selectedCustomerId,
         customerName: selectedCustomer?.fullName || "",
+        saleDate,
         ...items,
       };
       await addSale(data, user!.uid);
@@ -81,15 +85,44 @@ export default function NewSalePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Customer Selection */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
-          <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">Select Customer *</label>
-          <select value={selectedCustomerId} onChange={e => setSelectedCustomerId(e.target.value)}
-            className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 px-4 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all"
-            required>
-            <option value="">-- Choose a customer --</option>
-            {customers.map(c => <option key={c.id} value={c.id}>{c.fullName}{c.location ? ` (${c.location})` : ""}</option>)}
-          </select>
+        {/* Sale Details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
+          <div className="relative">
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">Select Customer *</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input type="text" placeholder="Search customer..." value={customerSearch} 
+                onChange={e => { setCustomerSearch(e.target.value); setShowDropdown(true); setSelectedCustomerId(""); }}
+                onFocus={() => setShowDropdown(true)}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all" />
+            </div>
+            
+            {showDropdown && (
+              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                {customers.filter(c => c.fullName.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone?.includes(customerSearch)).map(c => (
+                  <button key={c.id} type="button" onClick={() => { setSelectedCustomerId(c.id); setCustomerSearch(c.fullName); setShowDropdown(false); }}
+                    className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${selectedCustomerId === c.id ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-medium" : "text-gray-700 dark:text-gray-300"}`}>
+                    {c.fullName} {c.location ? `(${c.location})` : ""}
+                  </button>
+                ))}
+                {customers.filter(c => c.fullName.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone?.includes(customerSearch)).length === 0 && (
+                  <Link href="/customers" className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-emerald-600 rounded-lg hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30">
+                    <UserPlus className="h-4 w-4" /> Customer not found. Click to add.
+                  </Link>
+                )}
+              </div>
+            )}
+            {selectedCustomerId && !showDropdown && (
+               <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">Selected: {customers.find(c => c.id === selectedCustomerId)?.fullName}</p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">Sale Date</label>
+            <input type="date" value={saleDate} onChange={e => setSaleDate(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 px-4 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all" required />
+          </div>
         </div>
 
         {/* Items Grid */}

@@ -7,7 +7,7 @@ import { Customer, Sale } from "@/types";
 import { formatDate, formatCurrency } from "@/utils/formatters";
 import { PageSpinner } from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
-import { ArrowLeft, Phone, MapPin, StickyNote, ShoppingCart, Calendar } from "lucide-react";
+import { ArrowLeft, Phone, MapPin, StickyNote, ShoppingCart, Calendar, Eye, EyeOff } from "lucide-react";
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -15,6 +15,12 @@ export default function CustomerDetailPage() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPhone, setShowPhone] = useState(false);
+
+  function maskPhone(phone: string) {
+    if (!phone || phone.length < 6) return phone;
+    return phone.slice(0, 4) + "***" + phone.slice(-3);
+  }
 
   useEffect(() => {
     async function load() {
@@ -55,7 +61,21 @@ export default function CustomerDetailPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-3 dark:bg-gray-700/30">
             <Phone className="h-5 w-5 text-emerald-500" />
-            <div><p className="text-xs text-gray-500 dark:text-gray-400">Phone</p><p className="text-sm font-medium text-gray-900 dark:text-white">{customer.phone || "—"}</p></div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Phone</p>
+              {customer.phone ? (
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {showPhone ? customer.phone : maskPhone(customer.phone)}
+                  </p>
+                  <button onClick={() => setShowPhone(!showPhone)} className="text-gray-400 hover:text-emerald-600 transition-colors">
+                    {showPhone ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm font-medium text-gray-900 dark:text-white">—</p>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-3 dark:bg-gray-700/30">
             <MapPin className="h-5 w-5 text-blue-500" />

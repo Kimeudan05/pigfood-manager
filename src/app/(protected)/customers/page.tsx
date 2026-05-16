@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -10,7 +10,8 @@ import { PageSpinner } from "@/components/ui/Spinner";
 import Spinner from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import Modal, { ConfirmModal } from "@/components/ui/Modal";
-import { Plus, Search, Edit2, Trash2, Eye, Users, MapPin, Phone, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, Eye, EyeOff, Users, MapPin, Phone, ChevronLeft, ChevronRight, FileUp } from "lucide-react";
+import * as XLSX from "xlsx";
 
 const PER_PAGE = 10;
 const inputCls = "w-full rounded-xl border border-gray-300 bg-gray-50 py-2.5 px-4 text-sm text-gray-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all";
@@ -28,6 +29,11 @@ export default function CustomersPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [delLoading, setDelLoading] = useState(false);
   const [form, setForm] = useState<CustomerFormData>({ fullName: "", phone: "", location: "", notes: "" });
+  const [showConfirmAdd, setShowConfirmAdd] = useState(false);
+  const [pendingCustomer, setPendingCustomer] = useState<CustomerFormData | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showPhones, setShowPhones] = useState<Record<string, boolean>>({});
 
   async function load() {
     try { setCustomers(await getAllCustomers()); } catch { addToast("error", "Failed to load customers"); } finally { setLoading(false); }
@@ -49,13 +55,58 @@ export default function CustomersPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.fullName.trim()) { addToast("warning", "Name is required"); return; }
+    
+    if (!editing) {
+      const exists = customers.some(c => c.fullName.toLowerCase().trim() === form.fullName.toLowerCase().trim());
+      if (exists) {
+        setPendingCustomer(form);
+        setShowConfirmAdd(true);
+        return;
+      }
+    }
+    await proceedAdd(form);
+  }
+
+  async function proceedAdd(formData: CustomerFormData) {
     setFormLoading(true);
     try {
-      if (editing) { await updateCustomer(editing.id, form); addToast("success", "Customer updated"); }
-      else { await addCustomer(form, user!.uid); addToast("success", "Customer added"); }
-      setShowForm(false); await load();
+      if (editing) { await updateCustomer(editing.id, formData); addToast("success", "Customer updated"); }
+      else { await addCustomer(formData, user!.uid); addToast("success", "Customer added"); }
+      setShowForm(false); setShowConfirmAdd(false); setPendingCustomer(null); await load();
     } catch { addToast("error", "Operation failed"); } finally { setFormLoading(false); }
   }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(worksheet) as any[];
+      let added = 0;
+      for (const row of json) {
+        if (!row["Full Name"]) continue;
+        const newCustomer: CustomerFormData = {
+          fullName: String(row["Full Name"] || "").trim(),
+          phone: String(row["Phone"] || "").trim(),
+          location: String(row["Location"] || "").trim(),
+          notes: String(row["Notes"] || "").trim(),
+        };
+        if (!customers.some(c => c.fullName.toLowerCase().trim() === newCustomer.fullName.toLowerCase().trim())) {
+          await addCustomer(newCustomer, user!.uid);
+          added++;
+        }
+      }
+      if (added > 0) { addToast("success", `Imported ${added} customers`); await load(); }
+      else { addToast("info", "No new customers to import"); }
+    } catch (err) { addToast("error", "Failed to parse Excel file"); } 
+    finally { setImporting(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
+  }
+
+  function togglePhone(id: string) { setShowPhones(p => ({ ...p, [id]: !p[id] })); }
+  function maskPhone(phone: string) { return (!phone || phone.length < 6) ? phone : phone.slice(0, 4) + "***" + phone.slice(-3); }
 
   async function handleDelete() {
     if (!delTarget) return;
@@ -73,9 +124,15 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Customers</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">{customers.length} total</p>
         </div>
-        <button onClick={openAdd} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 transition-all">
-          <Plus className="h-4 w-4" /> Add Customer
-        </button>
+        <div className="flex items-center gap-2">
+          <input type="file" accept=".xlsx, .xls" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+          <button onClick={() => fileInputRef.current?.click()} disabled={importing} className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 border border-gray-200 shadow-sm hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-all">
+            {importing ? <Spinner size="sm" /> : <FileUp className="h-4 w-4" />} Import
+          </button>
+          <button onClick={openAdd} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 transition-all">
+            <Plus className="h-4 w-4" /> Add Customer
+          </button>
+        </div>
       </div>
 
       <div className="relative max-w-md">
@@ -101,7 +158,16 @@ export default function CustomersPage() {
                 {paginated.map(c => (
                   <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
                     <td className="px-5 py-3.5 font-medium text-gray-900 dark:text-white">{c.fullName}</td>
-                    <td className="px-5 py-3.5 text-gray-600 dark:text-gray-300">{c.phone || "—"}</td>
+                    <td className="px-5 py-3.5 text-gray-600 dark:text-gray-300">
+                      {c.phone ? (
+                        <div className="flex items-center gap-1.5">
+                          <span>{showPhones[c.id] ? c.phone : maskPhone(c.phone)}</span>
+                          <button onClick={() => togglePhone(c.id)} className="p-1 text-gray-400 hover:text-emerald-600 transition-colors">
+                            {showPhones[c.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </button>
+                        </div>
+                      ) : "—"}
+                    </td>
                     <td className="px-5 py-3.5 text-gray-600 dark:text-gray-300">{c.location || "—"}</td>
                     <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400">{formatDate(c.createdAt)}</td>
                     <td className="px-5 py-3.5">
@@ -129,7 +195,15 @@ export default function CustomersPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs text-gray-600 dark:text-gray-300">
-                  {c.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>}
+                  {c.phone && (
+                    <span className="flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      {showPhones[c.id] ? c.phone : maskPhone(c.phone)}
+                      <button onClick={() => togglePhone(c.id)} className="ml-0.5 text-gray-400 hover:text-emerald-600">
+                        {showPhones[c.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      </button>
+                    </span>
+                  )}
                   {c.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{c.location}</span>}
                 </div>
               </div>
@@ -169,6 +243,10 @@ export default function CustomersPage() {
 
       <ConfirmModal isOpen={!!delTarget} onClose={() => setDelTarget(null)} onConfirm={handleDelete} title="Delete Customer"
         message={`Delete "${delTarget?.fullName}"? This cannot be undone.`} loading={delLoading} />
+        
+      <ConfirmModal isOpen={showConfirmAdd} onClose={() => { setShowConfirmAdd(false); setPendingCustomer(null); }} 
+        onConfirm={() => pendingCustomer && proceedAdd(pendingCustomer)} title="Duplicate Customer"
+        message={`A customer with the name "${pendingCustomer?.fullName}" already exists. Do you want to add them anyway?`} loading={formLoading} />
     </div>
   );
 }
