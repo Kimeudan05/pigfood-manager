@@ -90,7 +90,9 @@ export default function NewSalePage() {
           <div className="relative">
             <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">Select Customer *</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 flex items-center justify-center opacity-60">
+                <img src="/pig-icon.png" alt="Search" className="h-full w-full object-contain" />
+              </div>
               <input type="text" placeholder="Search customer..." value={customerSearch} 
                 onChange={e => { setCustomerSearch(e.target.value); setShowDropdown(true); setSelectedCustomerId(""); }}
                 onFocus={() => setShowDropdown(true)}

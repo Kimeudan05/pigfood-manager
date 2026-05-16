@@ -39,14 +39,15 @@ export default function Modal({ isOpen, onClose, title, children, size = "md" }:
   if (!isOpen) return null;
 
   return (
-    <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={(e) => e.target === overlayRef.current && onClose()}
-    >
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
       <div
-        className={`${sizeClasses[size]} w-full rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-800 animate-in fade-in zoom-in-95 duration-200`}
+        ref={overlayRef}
+        className="flex min-h-full items-start justify-center p-4 sm:p-6 pt-10 sm:pt-6 sm:items-center"
+        onClick={(e) => e.target === overlayRef.current && onClose()}
       >
+        <div
+          className={`${sizeClasses[size]} w-full rounded-2xl bg-white p-5 sm:p-6 shadow-2xl dark:bg-gray-800 animate-in fade-in zoom-in-95 duration-200`}
+        >
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
@@ -61,6 +62,7 @@ export default function Modal({ isOpen, onClose, title, children, size = "md" }:
         {children}
       </div>
     </div>
+  </div>
   );
 }
 

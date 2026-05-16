@@ -12,6 +12,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import Modal, { ConfirmModal } from "@/components/ui/Modal";
 import { Plus, Search, Edit2, Trash2, Eye, EyeOff, Users, MapPin, Phone, ChevronLeft, ChevronRight, FileUp } from "lucide-react";
 import * as XLSX from "xlsx";
+import Image from "next/image";
 
 const PER_PAGE = 10;
 const inputCls = "w-full rounded-xl border border-gray-300 bg-gray-50 py-2.5 px-4 text-sm text-gray-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all";
@@ -136,7 +137,9 @@ export default function CustomersPage() {
       </div>
 
       <div className="relative max-w-md">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 flex items-center justify-center opacity-60">
+          <img src="/pig-icon.png" alt="Search" className="h-full w-full object-contain" />
+        </div>
         <input type="text" placeholder="Search name, phone, location..." value={search} onChange={e => setSearch(e.target.value)}
           className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white transition-all" />
       </div>
