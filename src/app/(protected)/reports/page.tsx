@@ -8,8 +8,8 @@ import { PRODUCTS } from "@/utils/pricing";
 import { salesToCSV, downloadCSV } from "@/utils/csv";
 import { PageSpinner } from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
-import { BarChart3, Download, Calendar, TrendingUp, Package } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { BarChart3, Download, Calendar, TrendingUp, Package, DollarSign } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from "recharts";
 import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 
 const COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899"];
@@ -84,6 +84,22 @@ export default function ReportsPage() {
     return Array.from(map.values())
       .sort((a, b) => b.spent - a.spent)
       .slice(0, 5); // Top 5
+  }, [filteredSales]);
+
+  // Revenue breakdown per product
+  const revenueByProduct = useMemo(() => {
+    const data = PRODUCTS.map((p, i) => {
+      const units = filteredSales.reduce((sum, s) => sum + ((s[p.key] as number) || 0), 0);
+      const revenue = filteredSales.reduce(
+        (sum, s) => sum + (((s as unknown as Record<string, number>)[p.totalKey]) || 0),
+        0
+      );
+      return { name: p.label, units, revenue, price: p.price, color: COLORS[i % COLORS.length] };
+    }).filter(p => p.units > 0);
+    const total = data.reduce((sum, p) => sum + p.revenue, 0);
+    return data
+      .map(p => ({ ...p, share: total > 0 ? Math.round((p.revenue / total) * 100) : 0 }))
+      .sort((a, b) => b.revenue - a.revenue);
   }, [filteredSales]);
 
   const totalRevenue = filteredSales.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
@@ -291,6 +307,89 @@ export default function ReportsPage() {
                 ))}
                 {topCustomersData.length === 0 && <p className="text-xs text-gray-500">No data</p>}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revenue per Item */}
+      {filteredSales.length > 0 && (
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+              <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Revenue per Item</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Breakdown of revenue contribution per product</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Bar Chart */}
+            <div className="h-60">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenueByProduct} layout="vertical" margin={{ left: 8, right: 40, top: 4, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                  <XAxis type="number" fontSize={10} tickLine={false} axisLine={false}
+                    tickFormatter={(v) => `KES ${Number(v).toLocaleString()}`} />
+                  <YAxis type="category" dataKey="name" fontSize={11} tickLine={false} axisLine={false} width={80} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: "12px", border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}
+                    formatter={(v: any) => [formatCurrency(Number(v)), "Revenue"]}
+                  />
+                  <Bar dataKey="revenue" radius={[0, 6, 6, 0]}>
+                    {revenueByProduct.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                    <LabelList dataKey="share" position="right" formatter={(v: any) => `${v}%`} style={{ fontSize: 11, fill: "#6b7280", fontWeight: 600 }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Summary Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-700/50">
+                    <th className="pb-2.5 text-left font-semibold text-gray-500 dark:text-gray-400">Product</th>
+                    <th className="pb-2.5 text-center font-semibold text-gray-500 dark:text-gray-400">Units</th>
+                    <th className="pb-2.5 text-center font-semibold text-gray-500 dark:text-gray-400">Unit Price</th>
+                    <th className="pb-2.5 text-right font-semibold text-gray-500 dark:text-gray-400">Revenue</th>
+                    <th className="pb-2.5 text-right font-semibold text-gray-500 dark:text-gray-400">Share</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700/30">
+                  {revenueByProduct.map((p, i) => (
+                    <tr key={i} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
+                      <td className="py-2.5 pr-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
+                          <span className="font-medium text-gray-900 dark:text-white">{p.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 text-center text-gray-600 dark:text-gray-300">{p.units.toLocaleString()}</td>
+                      <td className="py-2.5 text-center text-gray-600 dark:text-gray-300">KES {p.price}</td>
+                      <td className="py-2.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(p.revenue)}</td>
+                      <td className="py-2.5 text-right">
+                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                          {p.share}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-gray-200 dark:border-gray-600">
+                    <td colSpan={3} className="pt-2.5 font-semibold text-gray-700 dark:text-gray-300">Total</td>
+                    <td className="pt-2.5 text-right font-bold text-gray-900 dark:text-white">{formatCurrency(totalRevenue)}</td>
+                    <td className="pt-2.5 text-right">
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">100%</span>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </div>
         </div>
