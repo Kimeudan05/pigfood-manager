@@ -20,12 +20,25 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [filterMode, setFilterMode] = useState<"range" | "single">("range");
+  const [singleDate, setSingleDate] = useState("");
 
   useEffect(() => {
     getAllSales().then(setSales).catch(() => addToast("error", "Failed to load sales")).finally(() => setLoading(false));
   }, []);
 
   const filteredSales = useMemo(() => {
+    if (filterMode === "single") {
+      if (!singleDate) return sales;
+      return sales.filter(s => {
+        if (!s.createdAt) return false;
+        const d = toDate(s.createdAt);
+        const start = startOfDay(new Date(singleDate));
+        const end = endOfDay(new Date(singleDate));
+        return isWithinInterval(d, { start, end });
+      });
+    }
+
     if (!startDate && !endDate) return sales;
     return sales.filter(s => {
       if (!s.createdAt) return false;
@@ -34,7 +47,7 @@ export default function ReportsPage() {
       const end = endDate ? endOfDay(new Date(endDate)) : new Date(9999, 11, 31);
       return isWithinInterval(d, { start, end });
     });
-  }, [sales, startDate, endDate]);
+  }, [sales, filterMode, startDate, endDate, singleDate]);
 
   // Daily breakdown for the filtered period
   const dailyData = useMemo(() => {
@@ -79,7 +92,9 @@ export default function ReportsPage() {
   function handleExport() {
     if (filteredSales.length === 0) { addToast("warning", "No data to export"); return; }
     const csv = salesToCSV(filteredSales);
-    const dateLabel = startDate && endDate ? `${startDate}_to_${endDate}` : "all";
+    const dateLabel = filterMode === "single"
+      ? (singleDate || "all")
+      : (startDate && endDate ? `${startDate}_to_${endDate}` : "all");
     downloadCSV(csv, `takataka-report-${dateLabel}`);
     addToast("success", "Report exported!");
   }
@@ -99,17 +114,80 @@ export default function ReportsPage() {
         </button>
       </div>
 
-      {/* Date Range Filter */}
+      {/* Filter Options */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <Calendar className="h-5 w-5 text-emerald-500 hidden sm:block" />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Date Range:</span>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-            className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
-          <span className="text-gray-400">to</span>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-            className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
-          {(startDate || endDate) && <button onClick={() => { setStartDate(""); setEndDate(""); }} className="text-xs text-red-500 hover:text-red-400">Clear</button>}
+        <div className="flex flex-col gap-4">
+          {/* Mode Switcher */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Filter Type:</span>
+            <div className="inline-flex rounded-xl bg-gray-100 p-1 dark:bg-gray-700">
+              <button
+                type="button"
+                onClick={() => { setFilterMode("range"); setStartDate(""); setEndDate(""); setSingleDate(""); }}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                  filterMode === "range"
+                    ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
+                    : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                }`}
+              >
+                Date Range
+              </button>
+              <button
+                type="button"
+                onClick={() => { setFilterMode("single"); setStartDate(""); setEndDate(""); setSingleDate(""); }}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                  filterMode === "single"
+                    ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
+                    : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                }`}
+              >
+                Single Day
+              </button>
+            </div>
+          </div>
+
+          {/* Date Inputs */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <Calendar className="h-5 w-5 text-emerald-500 hidden sm:block" />
+            
+            {filterMode === "range" ? (
+              <>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Date Range:</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+                <span className="text-gray-400">to</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+              </>
+            ) : (
+              <>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Specific Date:</span>
+                <input
+                  type="date"
+                  value={singleDate}
+                  onChange={e => setSingleDate(e.target.value)}
+                  className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+              </>
+            )}
+
+            {((filterMode === "range" && (startDate || endDate)) || (filterMode === "single" && singleDate)) && (
+              <button
+                onClick={() => { setStartDate(""); setEndDate(""); setSingleDate(""); }}
+                className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors ml-auto sm:ml-0"
+              >
+                Clear Filter
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

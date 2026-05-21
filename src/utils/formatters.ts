@@ -3,7 +3,7 @@
 // ============================================
 
 import { Timestamp } from "firebase/firestore";
-import { format, isToday, isThisWeek, isThisMonth, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { format, isToday, isThisWeek, isThisMonth, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays } from "date-fns";
 
 /** Format a Firestore timestamp or Date to readable string */
 export function formatDate(date: Timestamp | Date | undefined | null, fmt: string = "MMM dd, yyyy"): string {
@@ -38,9 +38,13 @@ export function checkIsToday(date: Timestamp | Date): boolean {
   return isToday(toDate(date));
 }
 
-/** Check if a date is this week */
+/** Check if a date is this week (Monday to Saturday) */
 export function checkIsThisWeek(date: Timestamp | Date): boolean {
-  return isThisWeek(toDate(date), { weekStartsOn: 1 });
+  const d = toDate(date);
+  const now = new Date();
+  const start = startOfWeek(now, { weekStartsOn: 1 });
+  const end = endOfDay(addDays(start, 5));
+  return d >= start && d <= end;
 }
 
 /** Check if a date is this month */
@@ -54,10 +58,12 @@ export function getTodayRange(): [Date, Date] {
   return [startOfDay(now), endOfDay(now)];
 }
 
-/** Get start and end of this week */
+/** Get start and end of this week (Monday to Saturday) */
 export function getWeekRange(): [Date, Date] {
   const now = new Date();
-  return [startOfWeek(now, { weekStartsOn: 1 }), endOfWeek(now, { weekStartsOn: 1 })];
+  const start = startOfWeek(now, { weekStartsOn: 1 });
+  const end = endOfDay(addDays(start, 5));
+  return [start, end];
 }
 
 /** Get start and end of this month */

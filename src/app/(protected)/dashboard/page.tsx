@@ -33,7 +33,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { format, subDays, startOfDay } from "date-fns";
+import { format, subDays, startOfDay, startOfWeek, addDays } from "date-fns";
 import Link from "next/link";
 
 export default function DashboardPage() {
@@ -66,11 +66,13 @@ export default function DashboardPage() {
     const todayRevenue = todaySalesArr.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
     const weekRevenue = weekSalesArr.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
     const monthRevenue = monthSalesArr.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
+    const averageSale = sales.length > 0 ? totalRevenue / sales.length : 0;
 
     return {
       totalCustomers: customers.length,
       totalSales: sales.length,
       totalRevenue,
+      averageSale,
       todaySales: todaySalesArr.length,
       todayRevenue,
       weekSales: weekSalesArr.length,
@@ -109,10 +111,11 @@ export default function DashboardPage() {
     return totals.sort((a, b) => b.qty - a.qty)[0] || { label: "N/A", qty: 0, revenue: 0 };
   }, [sales]);
 
-  // --- 7-Day Sales Trend ---
+  // --- Weekly Revenue (Mon - Sat) ---
   const weeklyTrend = useMemo(() => {
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const date = subDays(new Date(), 6 - i);
+    const start = startOfWeek(new Date(), { weekStartsOn: 1 }); // Monday of current week
+    const days = Array.from({ length: 6 }, (_, i) => {
+      const date = addDays(start, i);
       const dayStart = startOfDay(date);
       const dayLabel = format(date, "EEE");
       const daySales = sales.filter((s) => {
@@ -122,7 +125,6 @@ export default function DashboardPage() {
       });
       return {
         day: dayLabel,
-        sales: daySales.length,
         revenue: daySales.reduce((sum, s) => sum + (s.grandTotal || 0), 0),
       };
     });
@@ -177,8 +179,8 @@ export default function DashboardPage() {
           delay="stagger-1"
         />
         <KPICard
-          title="Total Sales"
-          value={stats.totalSales.toString()}
+          title="Average Sale"
+          value={formatCurrency(stats.averageSale)}
           icon={<ShoppingCart className="h-5 w-5" />}
           color="blue"
           delay="stagger-2"
@@ -191,9 +193,8 @@ export default function DashboardPage() {
           delay="stagger-3"
         />
         <KPICard
-          title="Today's Sales"
-          value={stats.todaySales.toString()}
-          subtitle={formatCurrency(stats.todayRevenue)}
+          title="Today's Revenue"
+          value={formatCurrency(stats.todayRevenue)}
           icon={<TrendingUp className="h-5 w-5" />}
           color="amber"
           delay="stagger-4"
@@ -204,13 +205,11 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <SummaryCard
           title="This Week"
-          sales={stats.weekSales}
           revenue={stats.weekRevenue}
           icon={<Calendar className="h-5 w-5 text-emerald-500" />}
         />
         <SummaryCard
           title="This Month"
-          sales={stats.monthSales}
           revenue={stats.monthRevenue}
           icon={<Calendar className="h-5 w-5 text-blue-500" />}
         />
@@ -238,26 +237,23 @@ export default function DashboardPage() {
         {/* Weekly Sales Trend */}
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
           <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
-            Weekly Sales Trend (Last 7 Days)
+            Weekly Revenue Trend (Mon - Sat)
           </h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeklyTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="day" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `KES ${v.toLocaleString()}`} />
                 <Tooltip
                   contentStyle={{
                     borderRadius: "12px",
                     border: "1px solid #e5e7eb",
                     boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
                   }}
-                  formatter={(value: any, name: any) => [
-                    name === "revenue" ? formatCurrency(Number(value)) : value,
-                    name === "revenue" ? "Revenue" : "Sales",
-                  ]}
+                  formatter={(value: any) => [formatCurrency(Number(value)), "Revenue"]}
                 />
-                <Bar dataKey="sales" fill="#10b981" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -430,12 +426,11 @@ function KPICard({ title, value, subtitle, icon, color, delay }: KPICardProps) {
 
 interface SummaryCardProps {
   title: string;
-  sales: number;
   revenue: number;
   icon: React.ReactNode;
 }
 
-function SummaryCard({ title, sales, revenue, icon }: SummaryCardProps) {
+function SummaryCard({ title, revenue, icon }: SummaryCardProps) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
       <div className="flex items-center gap-3 mb-3">
@@ -446,14 +441,8 @@ function SummaryCard({ title, sales, revenue, icon }: SummaryCardProps) {
       </div>
       <div className="flex items-end justify-between">
         <div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{sales}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">sales</p>
-        </div>
-        <div className="text-right">
-          <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
-            {formatCurrency(revenue)}
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">revenue</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(revenue)}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">total revenue</p>
         </div>
       </div>
     </div>
