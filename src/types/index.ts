@@ -5,10 +5,21 @@
 import { Timestamp } from "firebase/firestore";
 
 // ---------- Auth ----------
+export type UserRole = 'owner' | 'admin' | 'staff';
+
 export interface AuthUser {
   uid: string;
   email: string | null;
   displayName: string | null;
+}
+
+export interface AppUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  role: UserRole;
+  createdAt: Timestamp;
 }
 
 // ---------- Customer ----------

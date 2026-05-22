@@ -2,73 +2,165 @@
 // ============================================
 // Authentication Context
 // ============================================
-// Provides auth state, login, register, logout functions.
+// Provides auth state, sign-in methods, and role-based access.
+// Supports: email/password, Google OAuth, magic link, password reset.
 // Auto-logout after 30 minutes of inactivity.
+// On first sign-in, creates a Firestore user document (role = 'owner'
+// if they are the very first user, otherwise 'staff').
 
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
+  GoogleAuthProvider,
+  signInWithPopup,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+  sendPasswordResetEmail,
+  updateProfile,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   User,
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  collection,
+  getDocs,
+} from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import { UserRole } from "@/types";
+
+// ── Magic link redirect URL ──────────────────────────────────────────────────
+// Must be whitelisted in Firebase Console → Authentication → Authorized domains
+export const MAGIC_LINK_REDIRECT_URL =
+  typeof window !== "undefined"
+    ? `${window.location.origin}/magic-link`
+    : "http://localhost:3000/magic-link";
+
+// ── Types ────────────────────────────────────────────────────────────────────
 
 interface AuthContextType {
   user: User | null;
+  userRole: UserRole | null;
   loading: boolean;
+  // Email / password
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  // Google
+  signInWithGoogle: () => Promise<void>;
+  // Magic link
+  sendMagicLink: (email: string) => Promise<void>;
+  completeMagicLinkSignIn: (email: string) => Promise<void>;
+  // Password
+  sendPasswordReset: (email: string) => Promise<void>;
+  // Profile
+  updateUserProfile: (displayName: string, photoURL?: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 30 minutes inactivity timeout (in milliseconds)
+// 30 minutes inactivity timeout
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000;
+
+// ── Firestore helpers ────────────────────────────────────────────────────────
+
+const usersRef = collection(db, "users");
+
+/** Load or create the Firestore user document and return the role. */
+async function ensureUserDoc(user: User): Promise<UserRole> {
+  const ref = doc(db, "users", user.uid);
+  const snap = await getDoc(ref);
+
+  if (snap.exists()) {
+    return (snap.data().role as UserRole) ?? "staff";
+  }
+
+  // Determine role: first user ever gets 'owner', everyone else gets 'staff'
+  let role: UserRole = "staff";
+  try {
+    const allUsers = await getDocs(usersRef);
+    if (allUsers.empty) role = "owner";
+  } catch {
+    // If we can't read the collection (security rules), default to staff
+    role = "staff";
+  }
+
+  await setDoc(ref, {
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName ?? "",
+    photoURL: user.photoURL ?? "",
+    role,
+    createdAt: serverTimestamp(),
+  });
+
+  return role;
+}
+
+// ── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Reset inactivity timer on user activity
+  // ── Inactivity auto-logout ──────────────────────────────────────────────
   const resetInactivityTimer = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(async () => {
-      // Auto-logout after 30 minutes of inactivity
       await signOut(auth);
       router.push("/login");
     }, INACTIVITY_TIMEOUT);
   }, [router]);
 
-  // Set up activity listeners for auto-logout
   useEffect(() => {
     if (!user) return;
-
     const events = ["mousedown", "keydown", "scroll", "touchstart", "mousemove"];
-    const handleActivity = () => resetInactivityTimer();
-
-    events.forEach((event) => window.addEventListener(event, handleActivity));
-    resetInactivityTimer(); // Start the timer
-
+    const handle = () => resetInactivityTimer();
+    events.forEach((e) => window.addEventListener(e, handle));
+    resetInactivityTimer();
     return () => {
-      events.forEach((event) => window.removeEventListener(event, handleActivity));
+      events.forEach((e) => window.removeEventListener(e, handle));
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [user, resetInactivityTimer]);
 
-  // Listen for auth state changes from Firebase
+  // ── Auth state listener ─────────────────────────────────────────────────
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const role = await ensureUserDoc(firebaseUser);
+        setUser(firebaseUser);
+        setUserRole(role);
+      } else {
+        setUser(null);
+        setUserRole(null);
+      }
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
+
+  // ── Auth methods ────────────────────────────────────────────────────────
 
   const login = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
@@ -84,8 +176,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
+  // Google OAuth
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    await signInWithPopup(auth, provider);
+  };
+
+  // Magic link — step 1: send the email
+  const sendMagicLink = async (email: string) => {
+    const actionCodeSettings = {
+      url: MAGIC_LINK_REDIRECT_URL,
+      handleCodeInApp: true,
+    };
+    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+    // Save email so the handler page can retrieve it without asking again
+    window.localStorage.setItem("emailForSignIn", email);
+  };
+
+  // Magic link — step 2: complete sign-in on the redirect page
+  const completeMagicLinkSignIn = async (email: string) => {
+    if (!isSignInWithEmailLink(auth, window.location.href)) {
+      throw new Error("Invalid magic link");
+    }
+    await signInWithEmailLink(auth, email, window.location.href);
+    window.localStorage.removeItem("emailForSignIn");
+  };
+
+  // Forgot password
+  const sendPasswordReset = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
+  };
+
+  // Profile update
+  const updateUserProfile = async (displayName: string, photoURL?: string) => {
+    if (!auth.currentUser) throw new Error("Not authenticated");
+    await updateProfile(auth.currentUser, {
+      displayName,
+      ...(photoURL !== undefined ? { photoURL } : {}),
+    });
+    // Sync to Firestore
+    const ref = doc(db, "users", auth.currentUser.uid);
+    await setDoc(
+      ref,
+      { displayName, ...(photoURL !== undefined ? { photoURL } : {}) },
+      { merge: true }
+    );
+    // Force re-render by refreshing current user
+    setUser({ ...auth.currentUser });
+  };
+
+  // Change password (requires re-authentication)
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    if (!auth.currentUser?.email) throw new Error("Not authenticated");
+    const credential = EmailAuthProvider.credential(
+      auth.currentUser.email,
+      currentPassword
+    );
+    await reauthenticateWithCredential(auth.currentUser, credential);
+    await updatePassword(auth.currentUser, newPassword);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        userRole,
+        loading,
+        login,
+        register,
+        logout,
+        signInWithGoogle,
+        sendMagicLink,
+        completeMagicLinkSignIn,
+        sendPasswordReset,
+        updateUserProfile,
+        changePassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
