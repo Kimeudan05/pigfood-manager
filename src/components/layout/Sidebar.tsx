@@ -14,6 +14,7 @@ import {
   PlusCircle,
   ChevronLeft,
   Leaf,
+  User,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/sales", label: "Sales", icon: ShoppingCart },
   { href: "/sales/new", label: "New Sale", icon: PlusCircle },
   { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/profile", label: "Profile", icon: User },
 ];
 
 export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
