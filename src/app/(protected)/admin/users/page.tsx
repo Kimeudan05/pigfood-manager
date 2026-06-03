@@ -35,6 +35,7 @@ import {
   ChevronDown,
   Lock,
   Search,
+  AlertTriangle,
 } from "lucide-react";
 import { formatDate } from "@/utils/formatters";
 
@@ -175,6 +176,16 @@ export default function AdminUsersPage() {
     );
   });
 
+  // Build a set of duplicate emails (same email, >1 UID in Firestore)
+  const emailCount: Record<string, number> = {};
+  users.forEach((u) => {
+    const e = u.email?.toLowerCase() ?? "";
+    emailCount[e] = (emailCount[e] ?? 0) + 1;
+  });
+  const isDuplicate = (u: AppUser) => (emailCount[u.email?.toLowerCase() ?? ""] ?? 0) > 1;
+
+  const pendingCount = users.filter((u) => u.status === "pending").length;
+
   if (!isAllowed) return null;
   if (loading) return <PageSpinner />;
 
@@ -182,12 +193,20 @@ export default function AdminUsersPage() {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+      <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <ShieldCheck className="h-6 w-6 text-amber-500" />
             Admin Panel
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{users.length} registered users</p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-sm text-gray-500 dark:text-gray-400">{users.length} registered users</p>
+            {pendingCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full dark:bg-amber-900/30 dark:text-amber-300">
+                <Clock className="h-3 w-3" />
+                {pendingCount} pending
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -241,7 +260,7 @@ export default function AdminUsersPage() {
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700/30">
                 {filteredUsers.map((u) => (
-                  <tr key={u.uid} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
+                  <tr key={u.uid} className={`hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors ${isDuplicate(u) ? "bg-orange-50/60 dark:bg-orange-900/10" : ""}`}>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <Avatar user={u} />
@@ -253,6 +272,11 @@ export default function AdminUsersPage() {
                         </div>
                         {u.uid === appUser?.uid && (
                           <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded dark:bg-emerald-900/30 dark:text-emerald-300">You</span>
+                        )}
+                        {isDuplicate(u) && (
+                          <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 dark:bg-orange-900/30 dark:text-orange-300">
+                            <AlertTriangle className="h-3 w-3" /> Duplicate
+                          </span>
                         )}
                       </div>
                     </td>

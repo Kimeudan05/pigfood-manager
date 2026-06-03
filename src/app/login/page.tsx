@@ -4,8 +4,8 @@
 // ============================================
 // Supports: email/password, Google OAuth, magic link (passwordless)
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -18,8 +18,23 @@ import {
   ArrowRight,
   Zap,
   ChevronRight,
+  PartyPopper,
 } from "lucide-react";
 import Spinner from "@/components/ui/Spinner";
+
+// Extracted into its own component because useSearchParams() requires Suspense
+function ApprovedBanner() {
+  const searchParams = useSearchParams();
+  if (searchParams.get("approved") !== "1") return null;
+  return (
+    <div className="mt-5 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800 dark:bg-emerald-900/20">
+      <PartyPopper className="h-5 w-5 text-emerald-500 shrink-0" />
+      <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">
+        Your account has been approved! Sign in below.
+      </p>
+    </div>
+  );
+}
 
 // Google logo SVG (official colors)
 function GoogleIcon() {
@@ -210,6 +225,11 @@ export default function LoginPage() {
               Sign in to your account to continue
             </p>
           </div>
+
+          {/* Approved banner — wrapped in Suspense per Next.js requirement */}
+          <Suspense fallback={null}>
+            <ApprovedBanner />
+          </Suspense>
 
           {/* Google button */}
           <button

@@ -92,7 +92,14 @@ async function ensureUserDoc(user: User): Promise<AppUser> {
   const snap = await getDoc(ref);
 
   if (snap.exists()) {
-    return { uid: snap.id, ...snap.data() } as AppUser;
+    const data = snap.data();
+    // Back-fill status for legacy accounts that pre-date the approval flow
+    if (!data.status) {
+      const ref2 = doc(db, "users", user.uid);
+      try { await import("firebase/firestore").then(({ updateDoc }) => updateDoc(ref2, { status: "approved" })); } catch { /* best-effort */ }
+      return { uid: snap.id, ...data, status: "approved" } as AppUser;
+    }
+    return { uid: snap.id, ...data } as AppUser;
   }
 
   // Determine role: first user ever gets 'owner', everyone else gets 'staff'

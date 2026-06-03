@@ -193,6 +193,15 @@ export async function getAllUsers(): Promise<import("@/types").AppUser[]> {
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() } as import("@/types").AppUser));
 }
 
+/** Find a user document by email address */
+export async function getUserByEmail(email: string): Promise<import("@/types").AppUser | null> {
+  const q = query(usersRef, where("email", "==", email));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  return { uid: d.id, ...d.data() } as import("@/types").AppUser;
+}
+
 /** Update a user's role */
 export async function updateUserRole(uid: string, role: import("@/types").UserRole): Promise<void> {
   const ref = doc(db, "users", uid);
