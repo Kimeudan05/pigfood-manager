@@ -223,3 +223,18 @@ export async function updateUserPermissions(
   await updateDoc(ref, { permissions });
 }
 
+/** Update general fields on a user doc */
+export async function updateUserDoc(
+  uid: string,
+  data: Partial<import("@/types").AppUser>
+): Promise<void> {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, data);
+}
+
+/** Permanently delete a user doc from Firestore */
+export async function deleteUserDoc(uid: string): Promise<void> {
+  const ref = doc(db, "users", uid);
+  await import("firebase/firestore").then(({ deleteDoc }) => deleteDoc(ref));
+}
+

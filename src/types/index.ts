@@ -6,7 +6,7 @@ import { Timestamp } from "firebase/firestore";
 
 // ---------- Auth ----------
 export type UserRole = 'owner' | 'admin' | 'staff';
-export type UserStatus = 'pending' | 'approved' | 'rejected';
+export type UserStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
 export interface AuthUser {
   uid: string;
@@ -33,6 +33,9 @@ export interface AppUser {
   status: UserStatus;
   createdAt: Timestamp;
   permissions?: Partial<GranularPermissions>;
+  adminMessage?: string;
+  adminMessageRead?: boolean;
+  adminNote?: string;
 }
 
 // ---------- Customer ----------

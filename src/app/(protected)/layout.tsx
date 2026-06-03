@@ -25,10 +25,14 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     }
   }, [user, loading, router]);
 
-  // Redirect to pending-approval if account not yet approved
+  // Redirect to pending-approval/suspended/rejected if account status requires it
   useEffect(() => {
-    if (!loading && user && userStatus === "pending") {
-      router.replace("/pending-approval");
+    if (!loading && user) {
+      if (userStatus === "pending" || userStatus === "rejected") {
+        router.replace("/pending-approval");
+      } else if (userStatus === "suspended") {
+        router.replace("/suspended");
+      }
     }
   }, [user, userStatus, loading, router]);
 
@@ -41,8 +45,8 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     );
   }
 
-  // Don't render protected content if not authenticated or pending
-  if (!user || userStatus === "pending") return null;
+  // Don't render protected content if not authenticated, pending, suspended, or rejected
+  if (!user || userStatus === "pending" || userStatus === "suspended" || userStatus === "rejected") return null;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">

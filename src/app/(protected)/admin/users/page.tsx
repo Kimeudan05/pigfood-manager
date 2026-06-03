@@ -15,6 +15,8 @@ import {
   updateUserRole,
   updateUserStatus,
   updateUserPermissions,
+  updateUserDoc,
+  deleteUserDoc,
 } from "@/lib/firestore";
 import { AppUser, UserRole, GranularPermissions } from "@/types";
 import {
@@ -26,6 +28,7 @@ import {
 } from "@/lib/rbac";
 import { PageSpinner } from "@/components/ui/Spinner";
 import Spinner from "@/components/ui/Spinner";
+import Modal, { ConfirmModal } from "@/components/ui/Modal";
 import {
   Users,
   ShieldCheck,
@@ -36,6 +39,11 @@ import {
   Lock,
   Search,
   AlertTriangle,
+  Pencil,
+  Trash2,
+  Ban,
+  MessageSquare,
+  Unlock,
 } from "lucide-react";
 import { formatDate } from "@/utils/formatters";
 
@@ -80,6 +88,17 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
   const [localPerms, setLocalPerms] = useState<Partial<GranularPermissions>>({});
   const [savingPerms, setSavingPerms] = useState(false);
+
+  // Modals state
+  const [editingUser, setEditingUser] = useState<AppUser | null>(null);
+  const [deletingUser, setDeletingUser] = useState<AppUser | null>(null);
+  const [suspendingUser, setSuspendingUser] = useState<AppUser | null>(null);
+  const [messagingUser, setMessagingUser] = useState<AppUser | null>(null);
+
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editRole, setEditRole] = useState<UserRole>("staff");
+  const [adminMessage, setAdminMessage] = useState("");
+  const [savingAction, setSavingAction] = useState(false);
 
   const PERM_KEYS = Object.keys(GRANULAR_LABELS) as (keyof GranularPermissions)[];
   const ROLES: UserRole[] = ["staff", "admin", "owner"];
@@ -127,6 +146,90 @@ export default function AdminUsersPage() {
       addToast("error", "Failed to update status");
     } finally {
       setActionUid(null);
+    }
+  }
+
+  async function handleEditConfirm() {
+    if (!editingUser) return;
+    setSavingAction(true);
+    try {
+      await updateUserDoc(editingUser.uid, {
+        displayName: editDisplayName,
+        role: editRole,
+      });
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.uid === editingUser.uid ? { ...u, displayName: editDisplayName, role: editRole } : u
+        )
+      );
+      addToast("success", "User details updated successfully");
+      setEditingUser(null);
+    } catch {
+      addToast("error", "Failed to update user details");
+    } finally {
+      setSavingAction(false);
+    }
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deletingUser) return;
+    setSavingAction(true);
+    try {
+      await deleteUserDoc(deletingUser.uid);
+      setUsers((prev) => prev.filter((u) => u.uid !== deletingUser.uid));
+      addToast("success", "User deleted successfully");
+      setDeletingUser(null);
+    } catch {
+      addToast("error", "Failed to delete user");
+    } finally {
+      setSavingAction(false);
+    }
+  }
+
+  async function handleSuspendConfirm() {
+    if (!suspendingUser) return;
+    setSavingAction(true);
+    const newStatus = suspendingUser.status === "suspended" ? "approved" : "suspended";
+    try {
+      await updateUserStatus(suspendingUser.uid, newStatus);
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.uid === suspendingUser.uid ? { ...u, status: newStatus } : u
+        )
+      );
+      addToast(
+        "success",
+        newStatus === "suspended"
+          ? "User account suspended"
+          : "User account unsuspended"
+      );
+      setSuspendingUser(null);
+    } catch {
+      addToast("error", "Failed to change suspension status");
+    } finally {
+      setSavingAction(false);
+    }
+  }
+
+  async function handleSendMessageConfirm() {
+    if (!messagingUser) return;
+    setSavingAction(true);
+    try {
+      await updateUserDoc(messagingUser.uid, {
+        adminMessage: adminMessage,
+        adminMessageRead: false,
+      });
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.uid === messagingUser.uid ? { ...u, adminMessage: adminMessage, adminMessageRead: false } : u
+        )
+      );
+      addToast("success", "Message sent to user");
+      setMessagingUser(null);
+    } catch {
+      addToast("error", "Failed to send message");
+    } finally {
+      setSavingAction(false);
     }
   }
 
@@ -285,7 +388,8 @@ export default function AdminUsersPage() {
                         {u.status === "pending" && <Clock className="h-3 w-3" />}
                         {u.status === "approved" && <CheckCircle2 className="h-3 w-3" />}
                         {u.status === "rejected" && <XCircle className="h-3 w-3" />}
-                        {u.status === "pending" ? "Pending" : u.status === "rejected" ? "Rejected" : "Approved"}
+                        {u.status === "suspended" && <Ban className="h-3 w-3" />}
+                        {u.status === "pending" ? "Pending" : u.status === "rejected" ? "Rejected" : u.status === "suspended" ? "Suspended" : "Approved"}
                       </span>
                     </td>
                     <td className="px-5 py-3.5">
@@ -314,27 +418,97 @@ export default function AdminUsersPage() {
                       <div className="flex items-center justify-end gap-2">
                         {u.uid !== appUser?.uid && (
                           <>
-                            {(u.status === "pending" || u.status === "rejected") && (
+                            {u.status === "pending" && (
+                              <>
+                                <button
+                                  onClick={() => handleStatusChange(u.uid, "approved")}
+                                  disabled={!!actionUid}
+                                  className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 transition-colors dark:bg-emerald-900/20 dark:text-emerald-400"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleStatusChange(u.uid, "rejected")}
+                                  disabled={!!actionUid}
+                                  className="flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors dark:bg-red-900/20 dark:text-red-400"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            {u.status === "rejected" && (
                               <button
                                 onClick={() => handleStatusChange(u.uid, "approved")}
-                                disabled={actionUid === u.uid}
+                                disabled={!!actionUid}
                                 className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 transition-colors dark:bg-emerald-900/20 dark:text-emerald-400"
                               >
-                                {actionUid === u.uid ? <Spinner size="sm" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                                 Approve
                               </button>
                             )}
-                            {(u.status === "pending" || u.status === "approved") && (
-                              <button
-                                onClick={() => handleStatusChange(u.uid, "rejected")}
-                                disabled={actionUid === u.uid}
-                                className="flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors dark:bg-red-900/20 dark:text-red-400"
-                              >
-                                <XCircle className="h-3.5 w-3.5" />
-                                Reject
-                              </button>
-                            )}
                           </>
+                        )}
+
+                        {/* Edit User */}
+                        <button
+                          onClick={() => {
+                            setEditingUser(u);
+                            setEditDisplayName(u.displayName || "");
+                            setEditRole(u.role);
+                          }}
+                          className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
+                          title="Edit User"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+
+                        {/* Send Message */}
+                        <button
+                          onClick={() => {
+                            setMessagingUser(u);
+                            setAdminMessage(u.adminMessage || "");
+                          }}
+                          className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
+                          title="Send Message"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </button>
+
+                        {/* Suspend / Unsuspend */}
+                        {u.uid !== appUser?.uid && (
+                          u.status === "suspended" ? (
+                            <button
+                              onClick={() => {
+                                setSuspendingUser(u);
+                              }}
+                              className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors"
+                              title="Unsuspend User"
+                            >
+                              <Unlock className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSuspendingUser(u);
+                              }}
+                              className="rounded-lg p-1.5 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20 transition-colors"
+                              title="Suspend User"
+                            >
+                              <Ban className="h-4 w-4" />
+                            </button>
+                          )
+                        )}
+
+                        {/* Delete User */}
+                        {u.uid !== appUser?.uid && (
+                          <button
+                            onClick={() => {
+                              setDeletingUser(u);
+                            }}
+                            className="rounded-lg p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 transition-colors"
+                            title="Delete User"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         )}
                       </div>
                     </td>
@@ -357,17 +531,53 @@ export default function AdminUsersPage() {
                     <p className="text-xs text-gray-500 truncate">{u.email}</p>
                   </div>
                   <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE_CLASSES[u.status ?? "approved"]}`}>
-                    {u.status ?? "approved"}
+                    {u.status === "pending" ? "Pending" : u.status === "rejected" ? "Rejected" : u.status === "suspended" ? "Suspended" : "Approved"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${ROLE_BADGE_CLASSES[u.role]}`}>{ROLE_LABELS[u.role]}</span>
-                  <div className="flex gap-2">
-                    {u.uid !== appUser?.uid && (u.status === "pending" || u.status === "rejected") && (
-                      <button onClick={() => handleStatusChange(u.uid, "approved")} disabled={actionUid === u.uid} className="text-xs text-emerald-600 hover:underline">Approve</button>
+                  <div className="flex gap-3 items-center">
+                    {u.uid !== appUser?.uid && u.status === "pending" && (
+                      <>
+                        <button onClick={() => handleStatusChange(u.uid, "approved")} disabled={!!actionUid} className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline">Approve</button>
+                        <button onClick={() => handleStatusChange(u.uid, "rejected")} disabled={!!actionUid} className="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">Reject</button>
+                      </>
                     )}
-                    {u.uid !== appUser?.uid && (u.status === "pending" || u.status === "approved") && (
-                      <button onClick={() => handleStatusChange(u.uid, "rejected")} disabled={actionUid === u.uid} className="text-xs text-red-600 hover:underline">Reject</button>
+                    {u.uid !== appUser?.uid && u.status === "rejected" && (
+                      <button onClick={() => handleStatusChange(u.uid, "approved")} disabled={!!actionUid} className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline">Approve</button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setEditingUser(u);
+                        setEditDisplayName(u.displayName || "");
+                        setEditRole(u.role);
+                      }}
+                      className="text-xs font-medium text-gray-600 dark:text-gray-400 hover:underline"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setMessagingUser(u);
+                        setAdminMessage(u.adminMessage || "");
+                      }}
+                      className="text-xs font-medium text-gray-600 dark:text-gray-400 hover:underline"
+                    >
+                      Message
+                    </button>
+
+                    {u.uid !== appUser?.uid && (
+                      u.status === "suspended" ? (
+                        <button onClick={() => setSuspendingUser(u)} className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline">Unsuspend</button>
+                      ) : (
+                        <button onClick={() => setSuspendingUser(u)} className="text-xs font-medium text-amber-600 dark:text-amber-400 hover:underline">Suspend</button>
+                      )
+                    )}
+
+                    {u.uid !== appUser?.uid && (
+                      <button onClick={() => setDeletingUser(u)} className="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">Delete</button>
                     )}
                   </div>
                 </div>
@@ -526,6 +736,128 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
+
+      {/* ── Edit User Modal ── */}
+      <Modal
+        isOpen={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        title="Edit User Details"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Display Name
+            </label>
+            <input
+              type="text"
+              value={editDisplayName}
+              onChange={(e) => setEditDisplayName(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 px-4 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Role
+            </label>
+            <div className="relative">
+              <select
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value as UserRole)}
+                className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-4 pr-10 text-sm focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700/50">
+            <button
+              onClick={() => setEditingUser(null)}
+              disabled={savingAction}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleEditConfirm}
+              disabled={savingAction || !editDisplayName.trim()}
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 transition-colors"
+            >
+              {savingAction ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Send Message Modal ── */}
+      <Modal
+        isOpen={!!messagingUser}
+        onClose={() => setMessagingUser(null)}
+        title={`Send Message to ${messagingUser?.displayName || messagingUser?.email || ""}`}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Message text (will be shown on their suspended screen)
+            </label>
+            <textarea
+              value={adminMessage}
+              onChange={(e) => setAdminMessage(e.target.value)}
+              placeholder="e.g. Please contact administration regarding your dues."
+              rows={4}
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 px-4 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700/50">
+            <button
+              onClick={() => setMessagingUser(null)}
+              disabled={savingAction}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSendMessageConfirm}
+              disabled={savingAction}
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 transition-colors"
+            >
+              {savingAction ? "Saving..." : "Save Message"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Suspend Confirmation Modal ── */}
+      <ConfirmModal
+        isOpen={!!suspendingUser}
+        onClose={() => setSuspendingUser(null)}
+        onConfirm={handleSuspendConfirm}
+        title={suspendingUser?.status === "suspended" ? "Unsuspend User?" : "Suspend User?"}
+        message={
+          suspendingUser?.status === "suspended"
+            ? `Are you sure you want to restore access for ${suspendingUser.displayName || suspendingUser.email}?`
+            : `Are you sure you want to suspend access for ${suspendingUser?.displayName || suspendingUser?.email}? They will be immediately blocked from dashboard access.`
+        }
+        confirmLabel={suspendingUser?.status === "suspended" ? "Unsuspend" : "Suspend"}
+        confirmVariant={suspendingUser?.status === "suspended" ? "primary" : "danger"}
+        loading={savingAction}
+      />
+
+      {/* ── Delete Confirmation Modal ── */}
+      <ConfirmModal
+        isOpen={!!deletingUser}
+        onClose={() => setDeletingUser(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete User Document?"
+        message={`Are you sure you want to permanently delete the document for ${deletingUser?.displayName || deletingUser?.email}? This action only removes their registry from the dashboard, but does not delete their Firebase Auth account. It cannot be undone.`}
+        confirmLabel="Delete Permanently"
+        confirmVariant="danger"
+        loading={savingAction}
+      />
     </div>
   );
 }
