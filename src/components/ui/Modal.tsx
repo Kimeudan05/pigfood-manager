@@ -66,7 +66,7 @@ export default function Modal({ isOpen, onClose, title, children, size = "md" }:
   );
 }
 
-/** Confirmation modal for delete actions */
+/** Confirmation modal — supports danger (red) and primary (green) variants */
 interface ConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -74,6 +74,7 @@ interface ConfirmModalProps {
   title: string;
   message: string;
   confirmLabel?: string;
+  confirmVariant?: "danger" | "primary";
   loading?: boolean;
 }
 
@@ -83,9 +84,15 @@ export function ConfirmModal({
   onConfirm,
   title,
   message,
-  confirmLabel = "Delete",
+  confirmLabel = "Confirm",
+  confirmVariant = "danger",
   loading = false,
 }: ConfirmModalProps) {
+  const confirmClass =
+    confirmVariant === "primary"
+      ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+      : "bg-red-600 hover:bg-red-700 text-white";
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
       <p className="mb-6 text-gray-600 dark:text-gray-300">{message}</p>
@@ -100,9 +107,9 @@ export function ConfirmModal({
         <button
           onClick={onConfirm}
           disabled={loading}
-          className="rounded-xl px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors"
+          className={`rounded-xl px-4 py-2.5 text-sm font-medium disabled:opacity-50 transition-colors ${confirmClass}`}
         >
-          {loading ? "Deleting..." : confirmLabel}
+          {loading ? "Please wait..." : confirmLabel}
         </button>
       </div>
     </Modal>

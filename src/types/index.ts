@@ -6,11 +6,22 @@ import { Timestamp } from "firebase/firestore";
 
 // ---------- Auth ----------
 export type UserRole = 'owner' | 'admin' | 'staff';
+export type UserStatus = 'pending' | 'approved' | 'rejected';
 
 export interface AuthUser {
   uid: string;
   email: string | null;
   displayName: string | null;
+}
+
+export interface GranularPermissions {
+  canAddCustomers: boolean;
+  canAddSale: boolean;
+  canViewDashboard: boolean;
+  canDeleteSale: boolean;
+  canEditSale: boolean;
+  canEditCustomer: boolean;
+  canApproveUser: boolean;
 }
 
 export interface AppUser {
@@ -19,7 +30,9 @@ export interface AppUser {
   displayName: string | null;
   photoURL: string | null;
   role: UserRole;
+  status: UserStatus;
   createdAt: Timestamp;
+  permissions?: Partial<GranularPermissions>;
 }
 
 // ---------- Customer ----------

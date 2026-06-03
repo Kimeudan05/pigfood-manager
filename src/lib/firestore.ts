@@ -181,3 +181,36 @@ export async function getSalesByDateRange(start: Date, end: Date): Promise<Sale[
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Sale));
 }
+
+// ---------- User Management Operations ----------
+
+const usersRef = collection(db, "users");
+
+/** Get all users ordered by creation date */
+export async function getAllUsers(): Promise<import("@/types").AppUser[]> {
+  const q = query(usersRef, orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ uid: d.id, ...d.data() } as import("@/types").AppUser));
+}
+
+/** Update a user's role */
+export async function updateUserRole(uid: string, role: import("@/types").UserRole): Promise<void> {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { role });
+}
+
+/** Update a user's status (approve / reject) */
+export async function updateUserStatus(uid: string, status: import("@/types").UserStatus): Promise<void> {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { status });
+}
+
+/** Update per-user granular permission overrides */
+export async function updateUserPermissions(
+  uid: string,
+  permissions: Partial<import("@/types").GranularPermissions>
+): Promise<void> {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { permissions });
+}
+

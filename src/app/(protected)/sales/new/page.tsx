@@ -265,6 +265,8 @@ export default function NewSalePage() {
         onConfirm={handleDupConfirm}
         title="Duplicate Sale for This Day?"
         message={`${selectedCustomer?.fullName ?? "This customer"} already has a sale on ${saleDate} (Sale #${dupSale?.saleNumber ?? ""}). A customer can pay 2 receipts for the day — do you want to add another sale anyway?`}
+        confirmLabel="Add Anyway"
+        confirmVariant="primary"
         loading={saving}
       />
     </div>

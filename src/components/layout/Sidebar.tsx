@@ -6,6 +6,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
   Users,
@@ -15,6 +16,7 @@ import {
   ChevronLeft,
   Leaf,
   User,
+  ShieldCheck,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -23,17 +25,19 @@ interface SidebarProps {
   onMobileClose?: () => void;
 }
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/customers", label: "Customers", icon: Users },
-  { href: "/sales", label: "Sales", icon: ShoppingCart },
-  { href: "/sales/new", label: "New Sale", icon: PlusCircle },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
-  { href: "/profile", label: "Profile", icon: User },
-];
-
 export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
+  const { userRole } = useAuth();
+  const isAdmin = userRole === "owner" || userRole === "admin";
+
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/customers", label: "Customers", icon: Users },
+    { href: "/sales", label: "Sales", icon: ShoppingCart },
+    { href: "/sales/new", label: "New Sale", icon: PlusCircle },
+    { href: "/reports", label: "Reports", icon: BarChart3 },
+    { href: "/profile", label: "Profile", icon: User },
+  ];
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -101,6 +105,38 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
               </Link>
             );
           })}
+
+          {/* Admin link — owner/admin only */}
+          {isAdmin && (() => {
+            const active = pathname.startsWith("/admin");
+            return (
+              <Link
+                href="/admin/users"
+                onClick={onMobileClose}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200 mt-1 ${
+                  active
+                    ? "bg-white/15 text-white shadow-lg shadow-emerald-900/20"
+                    : "text-emerald-100/70 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <ShieldCheck
+                  className={`h-5 w-5 shrink-0 transition-colors ${
+                    active ? "text-amber-300" : "text-emerald-400/60 group-hover:text-amber-300"
+                  }`}
+                />
+                <span
+                  className={`overflow-hidden whitespace-nowrap transition-all duration-300 ${
+                    collapsed ? "lg:w-0 lg:opacity-0" : "w-auto opacity-100"
+                  }`}
+                >
+                  Admin
+                </span>
+                {active && (
+                  <div className={`ml-auto h-2 w-2 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50 ${collapsed ? "lg:hidden" : ""}`} />
+                )}
+              </Link>
+            );
+          })()}
         </nav>
 
         {/* Collapse toggle (desktop only) */}

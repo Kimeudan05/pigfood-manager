@@ -4,6 +4,7 @@
 // ============================================
 // Wraps all authenticated routes with sidebar + navbar.
 // Redirects to login if user is not authenticated.
+// Redirects to /pending-approval if account is not yet approved.
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -13,7 +14,7 @@ import Navbar from "@/components/layout/Navbar";
 import { PageSpinner } from "@/components/ui/Spinner";
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, userStatus, loading } = useAuth();
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // collapsed on mobile by default
 
@@ -24,6 +25,13 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     }
   }, [user, loading, router]);
 
+  // Redirect to pending-approval if account not yet approved
+  useEffect(() => {
+    if (!loading && user && userStatus === "pending") {
+      router.replace("/pending-approval");
+    }
+  }, [user, userStatus, loading, router]);
+
   // Show spinner while checking auth
   if (loading) {
     return (
@@ -33,8 +41,8 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     );
   }
 
-  // Don't render protected content if not authenticated
-  if (!user) return null;
+  // Don't render protected content if not authenticated or pending
+  if (!user || userStatus === "pending") return null;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -62,3 +70,4 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
+

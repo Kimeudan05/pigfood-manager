@@ -8,7 +8,7 @@ import { formatDate, formatCurrency, toDate } from "@/utils/formatters";
 import { PageSpinner } from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import { ConfirmModal } from "@/components/ui/Modal";
-import { Plus, Search, Trash2, Eye, ShoppingCart, Filter, Printer, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Trash2, ShoppingCart, Filter, Printer, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 
 const PER_PAGE = 12;
 
@@ -140,6 +140,7 @@ export default function SalesPage() {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => printReceipt(s)} className="rounded-lg p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-colors" title="Print receipt"><Printer className="h-4 w-4" /></button>
+                        <a href={`/sales/${s.id}/edit`} className="rounded-lg p-2 text-gray-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400 transition-colors" title="Edit sale"><Pencil className="h-4 w-4" /></a>
                         <button onClick={() => setDelTarget(s)} className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" title="Delete"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </td>
@@ -163,6 +164,7 @@ export default function SalesPage() {
                   <span className="text-xs text-gray-500">{formatDate(s.createdAt)}</span>
                   <div className="flex gap-1">
                     <button onClick={() => printReceipt(s)} className="p-1.5 text-gray-400 hover:text-blue-600"><Printer className="h-4 w-4" /></button>
+                    <a href={`/sales/${s.id}/edit`} className="p-1.5 text-gray-400 hover:text-amber-600"><Pencil className="h-4 w-4" /></a>
                     <button onClick={() => setDelTarget(s)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
@@ -183,7 +185,7 @@ export default function SalesPage() {
       )}
 
       <ConfirmModal isOpen={!!delTarget} onClose={() => setDelTarget(null)} onConfirm={handleDelete} title="Delete Sale"
-        message={`Delete sale "${delTarget?.saleNumber}" for ${delTarget?.customerName}?`} loading={delLoading} />
+        message={`Delete sale "${delTarget?.saleNumber}" for ${delTarget?.customerName}?`} confirmLabel="Delete" loading={delLoading} />
     </div>
   );
 }

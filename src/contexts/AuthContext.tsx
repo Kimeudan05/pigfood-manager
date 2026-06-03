@@ -43,7 +43,8 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
-import { UserRole } from "@/types";
+import { UserRole, AppUser, UserStatus } from "@/types";
+import { sendNewUserNotification } from "@/lib/emailjs";
 
 // ── Magic link redirect URL ──────────────────────────────────────────────────
 // Must be whitelisted in Firebase Console → Authentication → Authorized domains
@@ -56,7 +57,9 @@ export const MAGIC_LINK_REDIRECT_URL =
 
 interface AuthContextType {
   user: User | null;
+  appUser: AppUser | null;
   userRole: UserRole | null;
+  userStatus: UserStatus | null;
   loading: boolean;
   // Email / password
   login: (email: string, password: string) => Promise<void>;
@@ -83,42 +86,53 @@ const INACTIVITY_TIMEOUT = 30 * 60 * 1000;
 
 const usersRef = collection(db, "users");
 
-/** Load or create the Firestore user document and return the role. */
-async function ensureUserDoc(user: User): Promise<UserRole> {
+/** Load or create the Firestore user document and return the full AppUser. */
+async function ensureUserDoc(user: User): Promise<AppUser> {
   const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
 
   if (snap.exists()) {
-    return (snap.data().role as UserRole) ?? "staff";
+    return { uid: snap.id, ...snap.data() } as AppUser;
   }
 
   // Determine role: first user ever gets 'owner', everyone else gets 'staff'
   let role: UserRole = "staff";
+  let status: UserStatus = "pending";
   try {
     const allUsers = await getDocs(usersRef);
-    if (allUsers.empty) role = "owner";
+    if (allUsers.empty) { role = "owner"; status = "approved"; }
   } catch {
-    // If we can't read the collection (security rules), default to staff
     role = "staff";
+    status = "pending";
   }
 
-  await setDoc(ref, {
+  const newUser: Omit<AppUser, "createdAt"> & { createdAt: ReturnType<typeof serverTimestamp> } = {
     uid: user.uid,
     email: user.email,
     displayName: user.displayName ?? "",
     photoURL: user.photoURL ?? "",
     role,
-    createdAt: serverTimestamp(),
-  });
+    status,
+    createdAt: serverTimestamp() as never,
+  };
 
-  return role;
+  await setDoc(ref, newUser);
+
+  // Notify admin of new registration (fire-and-forget)
+  if (status === "pending") {
+    sendNewUserNotification(user.email ?? "unknown").catch(() => {});
+  }
+
+  return { ...newUser, createdAt: new Date() as never } as unknown as AppUser;
 }
 
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -148,12 +162,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const role = await ensureUserDoc(firebaseUser);
+        const au = await ensureUserDoc(firebaseUser);
         setUser(firebaseUser);
-        setUserRole(role);
+        setAppUser(au);
+        setUserRole(au.role);
+        setUserStatus(au.status ?? "approved");
       } else {
         setUser(null);
+        setAppUser(null);
         setUserRole(null);
+        setUserStatus(null);
       }
       setLoading(false);
     });
@@ -241,7 +259,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        appUser,
         userRole,
+        userStatus,
         loading,
         login,
         register,
