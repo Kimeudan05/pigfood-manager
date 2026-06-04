@@ -12,7 +12,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import Modal, { ConfirmModal } from "@/components/ui/Modal";
 import {
   Plus, Search, Edit2, Trash2, Eye, EyeOff, Users, MapPin, Phone,
-  ChevronLeft, ChevronRight, FileUp, Download, CheckSquare, Sheet, X,
+  ChevronLeft, ChevronRight, FileUp, Download, CheckSquare, Sheet, X, TrendingUp,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -319,6 +319,16 @@ export default function CustomersPage() {
               Delete ({selected.size})
             </button>
           )}
+
+          {/* View Spending Report */}
+          <Link
+            href="/reports/customer-spending"
+            className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 border border-gray-200 shadow-sm hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-all"
+            title="View Customer Spending Report"
+          >
+            <TrendingUp className="h-4 w-4 text-emerald-600" />
+            <span className="hidden sm:inline">Spending Report</span>
+          </Link>
 
           {/* Add Customer */}
           <button

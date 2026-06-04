@@ -301,7 +301,15 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Top Customers */}
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Best Customers</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Best Customers</h3>
+            <Link
+              href="/reports/customer-spending"
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+            >
+              View All
+            </Link>
+          </div>
           {topCustomers.length === 0 ? (
             <p className="text-sm text-gray-400 py-8 text-center">No data yet</p>
           ) : (

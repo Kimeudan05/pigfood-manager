@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { useToast } from "@/contexts/ToastContext";
 import { getAllSales } from "@/lib/firestore";
 import { Sale } from "@/types";
@@ -292,7 +293,15 @@ export default function ReportsPage() {
 
             {/* Top Customers */}
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
-              <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Top Customers</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Top Customers</h3>
+                <Link
+                  href="/reports/customer-spending"
+                  className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                >
+                  View All
+                </Link>
+              </div>
               <div className="space-y-3">
                 {topCustomersData.map((c, i) => (
                   <div key={i} className="flex items-center justify-between">

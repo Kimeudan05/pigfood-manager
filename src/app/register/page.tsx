@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { getUserByEmail } from "@/lib/firestore";
 import { Leaf, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from "lucide-react";
 import Spinner from "@/components/ui/Spinner";
 
@@ -47,29 +46,11 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // ── Pre-check: is this email already in Firestore? ────────────────
-      const existing = await getUserByEmail(email.toLowerCase().trim());
-      if (existing) {
-        if (existing.status === "pending") {
-          addToast("info", "This email already has a pending account. Redirecting…");
-          router.push("/pending-approval");
-          return;
-        }
-        if (existing.status === "rejected") {
-          addToast("error", "This account was rejected by the admin. Contact kimeudan05@gmail.com for help.");
-          return;
-        }
-        if (existing.status === "approved") {
-          addToast("info", "An account with this email already exists. Please sign in.");
-          router.push("/login");
-          return;
-        }
-      }
-      // ──────────────────────────────────────────────────────────────────
       await register(email, password);
       addToast("success", "Account created! Awaiting admin approval.");
       router.push("/pending-approval");
     } catch (err: unknown) {
+      console.error("Registration failed with error:", err);
       const error = err as { code?: string };
       switch (error.code) {
         case "auth/email-already-in-use":
