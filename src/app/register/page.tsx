@@ -10,9 +10,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { Leaf, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from "lucide-react";
 import Spinner from "@/components/ui/Spinner";
+import { validateEmail } from "@/lib/emailValidation";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +28,13 @@ export default function RegisterPage() {
     if (!authLoading && user) router.replace("/dashboard");
   }, [user, authLoading, router]);
 
+  const handleEmailBlur = () => {
+    if (email) {
+      const result = validateEmail(email);
+      setEmailError(result.error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -34,9 +43,9 @@ export default function RegisterPage() {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      addToast("warning", "Please enter a valid email address");
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      setEmailError(emailValidation.error);
       return;
     }
 
@@ -140,17 +149,33 @@ export default function RegisterPage() {
                 Email address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Mail className={`absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 ${emailError ? "text-rose-400" : "text-gray-400"}`} />
                 <input
                   id="reg-email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (emailError) setEmailError(null);
+                  }}
+                  onBlur={handleEmailBlur}
                   placeholder="you@example.com"
-                  className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 pl-11 pr-4 text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-emerald-500 dark:focus:bg-gray-800 transition-all"
+                  className={`w-full rounded-xl border bg-gray-50 py-3 pl-11 pr-4 text-gray-900 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-800 transition-all ${
+                    emailError
+                      ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 dark:border-rose-500 dark:focus:border-rose-500"
+                      : "border-gray-300 focus:border-emerald-500 focus:ring-emerald-500/20 dark:border-gray-600 dark:focus:border-emerald-500"
+                  }`}
                   required
                 />
               </div>
+              {emailError && (
+                <p className="mt-2 flex items-center gap-1.5 text-sm text-rose-600 dark:text-rose-400">
+                  <svg className="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {emailError}
+                </p>
+              )}
             </div>
 
             {/* Password */}
