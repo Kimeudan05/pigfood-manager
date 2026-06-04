@@ -144,6 +144,12 @@ export default function LoginPage() {
       addToast("warning", "Please enter your email address");
       return;
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(magicEmail.trim())) {
+      addToast("warning", "Please enter a valid email address");
+      return;
+    }
     setMagicLoading(true);
     try {
       await sendMagicLink(magicEmail);

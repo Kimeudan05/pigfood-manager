@@ -27,16 +27,45 @@ export default function ForgotPasswordPage() {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      addToast("warning", "Please enter a valid email address");
+      return;
+    }
+
     setLoading(true);
     try {
+      // Check if user is registered using the backend API
+      let userExists = true;
+      try {
+        const res = await fetch("/api/auth/check-user-exists", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.toLowerCase().trim() }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          userExists = data.exists;
+        } else {
+          console.warn("User existence endpoint returned status", res.status);
+        }
+      } catch (apiErr) {
+        console.warn("Failed to check if user exists, falling back to standard reset:", apiErr);
+      }
+
+      if (!userExists) {
+        addToast("error", "No account found with this email address");
+        setLoading(false);
+        return;
+      }
+
       await sendPasswordReset(email);
       setSent(true);
     } catch (err: unknown) {
       const error = err as { code?: string };
       switch (error.code) {
         case "auth/user-not-found":
-          // Don't reveal whether the account exists — just show success
-          setSent(true);
+          addToast("error", "No account found with this email address");
           break;
         case "auth/invalid-email":
           addToast("error", "Invalid email address");
