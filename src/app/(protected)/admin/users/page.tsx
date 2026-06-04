@@ -18,6 +18,7 @@ import {
   updateUserDoc,
   deleteUserDoc,
 } from "@/lib/firestore";
+import { auth } from "@/lib/firebase";
 import { AppUser, UserRole, GranularPermissions } from "@/types";
 import {
   ROLE_LABELS,
@@ -44,6 +45,7 @@ import {
   Ban,
   MessageSquare,
   Unlock,
+  RefreshCw,
 } from "lucide-react";
 import { formatDate } from "@/utils/formatters";
 
@@ -99,6 +101,20 @@ export default function AdminUsersPage() {
   const [editRole, setEditRole] = useState<UserRole>("staff");
   const [adminMessage, setAdminMessage] = useState("");
   const [savingAction, setSavingAction] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleManualRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const all = await getAllUsers();
+      setUsers(all);
+      addToast("success", "User list refreshed");
+    } catch {
+      addToast("error", "Failed to refresh users");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [addToast]);
 
   const PERM_KEYS = Object.keys(GRANULAR_LABELS) as (keyof GranularPermissions)[];
   const ROLES: UserRole[] = ["staff", "admin", "owner"];
@@ -175,12 +191,29 @@ export default function AdminUsersPage() {
     if (!deletingUser) return;
     setSavingAction(true);
     try {
-      await deleteUserDoc(deletingUser.uid);
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Authentication token not found. Please log in again.");
+
+      const response = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ uid: deletingUser.uid }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Failed to delete user");
+      }
+
       setUsers((prev) => prev.filter((u) => u.uid !== deletingUser.uid));
-      addToast("success", "User deleted successfully");
+      addToast("success", "User permanently deleted from Auth and Firestore");
       setDeletingUser(null);
-    } catch {
-      addToast("error", "Failed to delete user");
+    } catch (err: any) {
+      console.error(err);
+      addToast("error", err.message || "Failed to delete user");
     } finally {
       setSavingAction(false);
     }
@@ -256,10 +289,12 @@ export default function AdminUsersPage() {
         )
       );
       setSelectedUser((prev) => prev ? { ...prev, permissions: localPerms } : prev);
-      addToast("success", "Permissions saved");
+      addToast("success", "Permissions saved successfully! Reloading page...");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch {
       addToast("error", "Failed to save permissions");
-    } finally {
       setSavingPerms(false);
     }
   }
@@ -296,7 +331,7 @@ export default function AdminUsersPage() {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
+        <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <ShieldCheck className="h-6 w-6 text-amber-500" />
             Admin Panel
@@ -311,6 +346,15 @@ export default function AdminUsersPage() {
             )}
           </div>
         </div>
+        <button
+          onClick={handleManualRefresh}
+          disabled={refreshing}
+          className="sm:ml-auto inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-all shrink-0"
+          title="Refresh User List"
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-emerald-500" : ""}`} />
+          Refresh List
+        </button>
       </div>
 
       {/* Tabs */}
@@ -852,8 +896,8 @@ export default function AdminUsersPage() {
         isOpen={!!deletingUser}
         onClose={() => setDeletingUser(null)}
         onConfirm={handleDeleteConfirm}
-        title="Delete User Document?"
-        message={`Are you sure you want to permanently delete the document for ${deletingUser?.displayName || deletingUser?.email}? This action only removes their registry from the dashboard, but does not delete their Firebase Auth account. It cannot be undone.`}
+        title="Permanently Delete User?"
+        message={`Are you sure you want to permanently delete ${deletingUser?.displayName || deletingUser?.email}? This will delete their document from Firestore AND permanently delete their account from Firebase Authentication. This cannot be undone.`}
         confirmLabel="Delete Permanently"
         confirmVariant="danger"
         loading={savingAction}
