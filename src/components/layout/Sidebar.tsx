@@ -7,6 +7,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { canDo } from "@/lib/rbac";
 import {
   LayoutDashboard,
   Users,
@@ -27,17 +28,20 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
-  const { userRole } = useAuth();
+  const { userRole, appUser } = useAuth();
   const isAdmin = userRole === "owner" || userRole === "admin";
 
-  const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/customers", label: "Customers", icon: Users },
-    { href: "/sales", label: "Sales", icon: ShoppingCart },
-    { href: "/sales/new", label: "New Sale", icon: PlusCircle },
-    { href: "/reports", label: "Reports", icon: BarChart3 },
-    { href: "/profile", label: "Profile", icon: User },
+  // Build nav items filtered by what the user is allowed to see
+  const allNavItems = [
+    { href: "/dashboard",  label: "Dashboard", icon: LayoutDashboard, show: true },
+    { href: "/customers",  label: "Customers",  icon: Users,           show: canDo(appUser, "canViewCustomers") && isAdmin },
+    { href: "/sales",      label: "Sales",      icon: ShoppingCart,    show: canDo(appUser, "canViewSales") },
+    { href: "/sales/new",  label: "New Sale",   icon: PlusCircle,      show: canDo(appUser, "canAddSale") },
+    { href: "/reports",    label: "Reports",    icon: BarChart3,       show: canDo(appUser, "canViewReports") },
+    { href: "/profile",    label: "Profile",    icon: User,            show: true },
   ];
+
+  const navItems = allNavItems.filter(i => i.show);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";

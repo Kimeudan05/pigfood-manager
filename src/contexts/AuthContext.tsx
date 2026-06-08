@@ -40,6 +40,7 @@ import {
   serverTimestamp,
   collection,
   getDocs,
+  onSnapshot,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
@@ -184,6 +185,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     return () => unsubscribe();
   }, []);
+
+  // ── Real-time listener for own user doc (picks up role/permission changes) ─
+  useEffect(() => {
+    if (!user) return;
+    const userRef = doc(db, "users", user.uid);
+    const unsubscribe = onSnapshot(userRef, (snap) => {
+      if (snap.exists()) {
+        const updated = { uid: snap.id, ...snap.data() } as AppUser;
+        setAppUser(updated);
+        setUserRole(updated.role);
+        setUserStatus(updated.status ?? "approved");
+      }
+    });
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   // ── Auth methods ────────────────────────────────────────────────────────
 
