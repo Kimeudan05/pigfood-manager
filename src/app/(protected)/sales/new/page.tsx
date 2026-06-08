@@ -12,12 +12,21 @@ import Spinner from "@/components/ui/Spinner";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { ArrowLeft, ShoppingCart, Minus, Plus, UserPlus } from "lucide-react";
 import Link from "next/link";
+import { canDo } from "@/lib/rbac";
 
 export default function NewSalePage() {
-  const { user } = useAuth();
+  const { user, appUser } = useAuth();
   const { addToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Guard: only users with canAddSale can access this page
+  useEffect(() => {
+    if (appUser && !canDo(appUser, "canAddSale")) {
+      addToast("warning", "🔒 You don't have permission to add sales. Contact your admin.");
+      router.replace("/sales");
+    }
+  }, [appUser]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);

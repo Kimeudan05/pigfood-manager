@@ -5,7 +5,7 @@
 import { Timestamp } from "firebase/firestore";
 
 // ---------- Auth ----------
-export type UserRole = 'owner' | 'admin' | 'staff';
+export type UserRole = 'owner' | 'admin' | 'staff' | 'viewer';
 export type UserStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
 export interface AuthUser {
@@ -15,12 +15,20 @@ export interface AuthUser {
 }
 
 export interface GranularPermissions {
-  canAddCustomers: boolean;
-  canAddSale: boolean;
+  // Dashboard
   canViewDashboard: boolean;
-  canDeleteSale: boolean;
-  canEditSale: boolean;
+  // Customers
+  canViewCustomers: boolean;
+  canAddCustomers: boolean;
   canEditCustomer: boolean;
+  // Sales
+  canViewSales: boolean;
+  canAddSale: boolean;
+  canEditSale: boolean;
+  canDeleteSale: boolean;
+  // Reports
+  canViewReports: boolean;
+  // Admin
   canApproveUser: boolean;
 }
 

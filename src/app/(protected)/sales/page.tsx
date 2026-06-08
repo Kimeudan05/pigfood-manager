@@ -1,6 +1,8 @@
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { getAllSales, deleteSale } from "@/lib/firestore";
 import { Sale } from "@/types";
@@ -8,12 +10,24 @@ import { formatDate, formatCurrency, toDate } from "@/utils/formatters";
 import { PageSpinner } from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import { ConfirmModal } from "@/components/ui/Modal";
-import { Plus, Search, Trash2, ShoppingCart, Filter, Printer, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { canDo } from "@/lib/rbac";
+import { Plus, Search, Trash2, ShoppingCart, Filter, Printer, ChevronLeft, ChevronRight, Pencil, Lock } from "lucide-react";
 
 const PER_PAGE = 12;
 
 export default function SalesPage() {
+  const { appUser } = useAuth();
   const { addToast } = useToast();
+  const router = useRouter();
+
+  const canViewSales = canDo(appUser, "canViewSales");
+  const canAdd       = canDo(appUser, "canAddSale");
+  const canEdit      = canDo(appUser, "canEditSale");
+  const canDelete    = canDo(appUser, "canDeleteSale");
+
+  function denyToast(action: string) {
+    addToast("warning", `🔒 You don't have permission to ${action}. Contact your admin.`);
+  }
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -22,6 +36,13 @@ export default function SalesPage() {
   const [delTarget, setDelTarget] = useState<Sale | null>(null);
   const [delLoading, setDelLoading] = useState(false);
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
+
+  // Guard: redirect viewers away from sales
+  useEffect(() => {
+    if (appUser && !canViewSales) {
+      router.replace("/dashboard");
+    }
+  }, [appUser, canViewSales]);
 
   async function load() {
     try { setSales(await getAllSales()); } catch { addToast("error", "Failed to load sales"); } finally { setLoading(false); }
@@ -50,6 +71,7 @@ export default function SalesPage() {
 
   async function handleDelete() {
     if (!delTarget) return;
+    if (!canDelete) { denyToast("delete sales"); setDelTarget(null); return; }
     setDelLoading(true);
     try { await deleteSale(delTarget.id); addToast("success", "Sale deleted"); setDelTarget(null); await load(); }
     catch { addToast("error", "Delete failed"); } finally { setDelLoading(false); }
@@ -90,6 +112,7 @@ export default function SalesPage() {
   }
 
   if (loading) return <PageSpinner />;
+  if (!canViewSales) return null;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -98,9 +121,19 @@ export default function SalesPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sales</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">{sales.length} total sales</p>
         </div>
-        <Link href="/sales/new" className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 transition-all">
-          <Plus className="h-4 w-4" /> New Sale
-        </Link>
+        {canAdd ? (
+          <Link href="/sales/new" className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 transition-all">
+            <Plus className="h-4 w-4" /> New Sale
+          </Link>
+        ) : (
+          <button
+            onClick={() => denyToast("add sales")}
+            className="inline-flex items-center gap-2 rounded-xl bg-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+            title="Permission required"
+          >
+            <Lock className="h-4 w-4" /> New Sale
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -140,8 +173,16 @@ export default function SalesPage() {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => printReceipt(s)} className="rounded-lg p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-colors" title="Print receipt"><Printer className="h-4 w-4" /></button>
-                        <a href={`/sales/${s.id}/edit`} className="rounded-lg p-2 text-gray-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400 transition-colors" title="Edit sale"><Pencil className="h-4 w-4" /></a>
-                        <button onClick={() => setDelTarget(s)} className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" title="Delete"><Trash2 className="h-4 w-4" /></button>
+                        {canEdit ? (
+                          <a href={`/sales/${s.id}/edit`} className="rounded-lg p-2 text-gray-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400 transition-colors" title="Edit sale"><Pencil className="h-4 w-4" /></a>
+                        ) : (
+                          <button onClick={() => denyToast("edit sales")} className="rounded-lg p-2 text-gray-200 dark:text-gray-700 cursor-not-allowed" title="Permission required"><Lock className="h-4 w-4" /></button>
+                        )}
+                        {canDelete ? (
+                          <button onClick={() => setDelTarget(s)} className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" title="Delete"><Trash2 className="h-4 w-4" /></button>
+                        ) : (
+                          <button onClick={() => denyToast("delete sales")} className="rounded-lg p-2 text-gray-200 dark:text-gray-700 cursor-not-allowed" title="Permission required"><Trash2 className="h-4 w-4" /></button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -164,8 +205,16 @@ export default function SalesPage() {
                   <span className="text-xs text-gray-500">{formatDate(s.createdAt)}</span>
                   <div className="flex gap-1">
                     <button onClick={() => printReceipt(s)} className="p-1.5 text-gray-400 hover:text-blue-600"><Printer className="h-4 w-4" /></button>
-                    <a href={`/sales/${s.id}/edit`} className="p-1.5 text-gray-400 hover:text-amber-600"><Pencil className="h-4 w-4" /></a>
-                    <button onClick={() => setDelTarget(s)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                    {canEdit ? (
+                      <a href={`/sales/${s.id}/edit`} className="p-1.5 text-gray-400 hover:text-amber-600"><Pencil className="h-4 w-4" /></a>
+                    ) : (
+                      <button onClick={() => denyToast("edit sales")} className="p-1.5 text-gray-200 dark:text-gray-700 cursor-not-allowed"><Lock className="h-4 w-4" /></button>
+                    )}
+                    {canDelete ? (
+                      <button onClick={() => setDelTarget(s)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                    ) : (
+                      <button onClick={() => denyToast("delete sales")} className="p-1.5 text-gray-200 dark:text-gray-700 cursor-not-allowed"><Trash2 className="h-4 w-4" /></button>
+                    )}
                   </div>
                 </div>
               </div>

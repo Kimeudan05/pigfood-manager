@@ -117,7 +117,7 @@ export default function AdminUsersPage() {
   }, [addToast]);
 
   const PERM_KEYS = Object.keys(GRANULAR_LABELS) as (keyof GranularPermissions)[];
-  const ROLES: UserRole[] = ["staff", "admin", "owner"];
+  const ROLES: UserRole[] = ["viewer", "staff", "admin", "owner"];
 
   // Access guard
   const isAllowed = userRole === "owner" || userRole === "admin";

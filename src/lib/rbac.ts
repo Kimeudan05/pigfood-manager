@@ -45,6 +45,13 @@ const PERMISSION_MATRIX: Record<UserRole, Permissions> = {
     createRecords: true,
     editRecords: false,
   },
+  viewer: {
+    manageUsers: false,
+    deleteRecords: false,
+    viewReports: false,
+    createRecords: false,
+    editRecords: false,
+  },
 };
 
 /**
@@ -63,30 +70,51 @@ export function can(
 
 export const GRANULAR_DEFAULTS: Record<UserRole, GranularPermissions> = {
   owner: {
-    canAddCustomers: true,
-    canAddSale: true,
     canViewDashboard: true,
-    canDeleteSale: true,
-    canEditSale: true,
+    canViewCustomers: true,
+    canAddCustomers: true,
     canEditCustomer: true,
+    canViewSales: true,
+    canAddSale: true,
+    canEditSale: true,
+    canDeleteSale: true,
+    canViewReports: true,
     canApproveUser: true,
   },
   admin: {
-    canAddCustomers: true,
-    canAddSale: true,
     canViewDashboard: true,
-    canDeleteSale: true,
-    canEditSale: true,
+    canViewCustomers: true,
+    canAddCustomers: true,
     canEditCustomer: true,
+    canViewSales: true,
+    canAddSale: true,
+    canEditSale: true,
+    canDeleteSale: true,
+    canViewReports: true,
     canApproveUser: true,
   },
   staff: {
-    canAddCustomers: false,
-    canAddSale: true,
     canViewDashboard: true,
-    canDeleteSale: false,
-    canEditSale: false,
+    canViewCustomers: true,
+    canAddCustomers: false,
     canEditCustomer: false,
+    canViewSales: true,
+    canAddSale: true,
+    canEditSale: false,
+    canDeleteSale: false,
+    canViewReports: false,
+    canApproveUser: false,
+  },
+  viewer: {
+    canViewDashboard: true,
+    canViewCustomers: false,
+    canAddCustomers: false,
+    canEditCustomer: false,
+    canViewSales: false,
+    canAddSale: false,
+    canEditSale: false,
+    canDeleteSale: false,
+    canViewReports: true,
     canApproveUser: false,
   },
 };
@@ -95,12 +123,15 @@ export const GRANULAR_DEFAULTS: Record<UserRole, GranularPermissions> = {
  * Human-readable labels for granular permissions (for the admin UI).
  */
 export const GRANULAR_LABELS: Record<keyof GranularPermissions, string> = {
-  canAddCustomers: "Can add customers",
-  canAddSale: "Can add sale",
   canViewDashboard: "Can view dashboard",
-  canDeleteSale: "Can delete sale",
-  canEditSale: "Can edit sale",
+  canViewCustomers: "Can view customers",
+  canAddCustomers: "Can add customers",
   canEditCustomer: "Can edit a customer",
+  canViewSales: "Can view sales",
+  canAddSale: "Can add sale",
+  canEditSale: "Can edit sale",
+  canDeleteSale: "Can delete sale",
+  canViewReports: "Can view reports",
   canApproveUser: "Can approve user",
 };
 
@@ -126,6 +157,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   owner: "Owner",
   admin: "Admin",
   staff: "Staff",
+  viewer: "Viewer",
 };
 
 /** Tailwind colour classes for role badges */
@@ -136,6 +168,8 @@ export const ROLE_BADGE_CLASSES: Record<UserRole, string> = {
     "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   staff:
     "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+  viewer:
+    "bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-400",
 };
 
 /** Tailwind colour classes for status badges */

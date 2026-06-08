@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { getAllCustomers, addCustomer, updateCustomer, deleteCustomer } from "@/lib/firestore";
@@ -10,9 +11,11 @@ import { PageSpinner } from "@/components/ui/Spinner";
 import Spinner from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import Modal, { ConfirmModal } from "@/components/ui/Modal";
+import { canDo } from "@/lib/rbac";
 import {
   Plus, Search, Edit2, Trash2, Eye, EyeOff, Users, MapPin, Phone,
-  ChevronLeft, ChevronRight, FileUp, Download, CheckSquare, Sheet, X, TrendingUp,
+  ChevronLeft, ChevronRight, FileUp, Download, CheckSquare, Sheet, TrendingUp,
+  Lock,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -21,8 +24,20 @@ const inputCls =
   "w-full rounded-xl border border-gray-300 bg-gray-50 py-2.5 px-4 text-sm text-gray-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all";
 
 export default function CustomersPage() {
-  const { user } = useAuth();
+  const { user, appUser } = useAuth();
   const { addToast } = useToast();
+  const router = useRouter();
+
+  // Permission helpers
+  const canViewCustomers  = canDo(appUser, "canViewCustomers");
+  const canAdd            = canDo(appUser, "canAddCustomers");
+  const canEdit           = canDo(appUser, "canEditCustomer");
+  const canDelete         = canDo(appUser, "canDeleteSale"); // reuses delete perm (no separate one)
+  const isAdminOrOwner    = appUser?.role === "admin" || appUser?.role === "owner";
+
+  function denyToast(action: string) {
+    addToast("warning", `🔒 You don't have permission to ${action}. Contact your admin.`);
+  }
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -55,6 +70,14 @@ export default function CustomersPage() {
     catch { addToast("error", "Failed to load customers"); }
     finally { setLoading(false); }
   }
+
+  // Guard: redirect if no view permission
+  useEffect(() => {
+    if (!loading && appUser && !canViewCustomers) {
+      router.replace("/dashboard");
+    }
+  }, [loading, appUser, canViewCustomers]);
+
   useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => {
@@ -71,8 +94,14 @@ export default function CustomersPage() {
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
   useEffect(() => { setPage(1); }, [search]);
 
-  function openAdd() { setEditing(null); setForm({ fullName: "", phone: "", location: "", notes: "" }); setShowForm(true); }
-  function openEdit(c: Customer) { setEditing(c); setForm({ fullName: c.fullName, phone: c.phone, location: c.location, notes: c.notes }); setShowForm(true); }
+  function openAdd() {
+    if (!canAdd) { denyToast("add customers"); return; }
+    setEditing(null); setForm({ fullName: "", phone: "", location: "", notes: "" }); setShowForm(true);
+  }
+  function openEdit(c: Customer) {
+    if (!canEdit) { denyToast("edit customers"); return; }
+    setEditing(c); setForm({ fullName: c.fullName, phone: c.phone, location: c.location, notes: c.notes }); setShowForm(true);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -93,10 +122,11 @@ export default function CustomersPage() {
     } catch { addToast("error", "Operation failed"); } finally { setFormLoading(false); }
   }
 
-  // ── Excel Import ──
+  // ── Excel Import (admin/owner only) ──
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!isAdminOrOwner) { denyToast("import customers"); if (fileInputRef.current) fileInputRef.current.value = ""; return; }
     setImporting(true);
     try {
       const data = await file.arrayBuffer();
@@ -122,11 +152,12 @@ export default function CustomersPage() {
     finally { setImporting(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
   }
 
-  // ── Export ──
+  // ── Export (phone masked for non-admins) ──
   function handleExport() {
     const rows = filtered.map(c => ({
       "Full Name": c.fullName,
-      "Phone": c.phone,
+      // Mask phone numbers for non-admin/owner users
+      "Phone": isAdminOrOwner ? c.phone : maskPhone(c.phone),
       "Location": c.location,
       "Notes": c.notes,
       "Added": formatDate(c.createdAt),
@@ -135,10 +166,10 @@ export default function CustomersPage() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Customers");
     XLSX.writeFile(wb, `customers-${new Date().toISOString().slice(0, 10)}.xlsx`);
-    addToast("success", `Exported ${rows.length} customers`);
+    addToast("success", `Exported ${rows.length} customers${!isAdminOrOwner ? " (phone numbers masked)" : ""}`);
   }
 
-  // ── Google Sheet Import ──
+  // ── Google Sheet Import (admin/owner only) ──
   function extractSheetId(url: string): string | null {
     // Handles full URL like https://docs.google.com/spreadsheets/d/SHEET_ID/edit...
     const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
@@ -149,6 +180,7 @@ export default function CustomersPage() {
   }
 
   async function handleSheetImport() {
+    if (!isAdminOrOwner) { denyToast("import from Google Sheet"); return; }
     const id = extractSheetId(sheetUrl.trim());
     if (!id) { addToast("warning", "Invalid Google Sheet URL or ID"); return; }
     setSheetImporting(true);
@@ -231,6 +263,7 @@ export default function CustomersPage() {
   }
 
   async function handleBulkDelete() {
+    if (!isAdminOrOwner) { denyToast("delete customers"); setShowBulkConfirm(false); return; }
     setBulkDelLoading(true);
     try {
       await Promise.all([...selected].map(id => deleteCustomer(id)));
@@ -244,12 +277,14 @@ export default function CustomersPage() {
 
   async function handleDelete() {
     if (!delTarget) return;
+    if (!isAdminOrOwner) { denyToast("delete customers"); setDelTarget(null); return; }
     setDelLoading(true);
     try { await deleteCustomer(delTarget.id); addToast("success", "Customer deleted"); setDelTarget(null); await load(); }
     catch { addToast("error", "Delete failed"); } finally { setDelLoading(false); }
   }
 
   if (loading) return <PageSpinner />;
+  if (!canViewCustomers) return null; // redirect handled by useEffect above
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -263,51 +298,57 @@ export default function CustomersPage() {
           {/* Hidden Excel file input */}
           <input type="file" accept=".xlsx, .xls" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
 
-          {/* Import Excel */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 border border-gray-200 shadow-sm hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-all"
-            title="Import from Excel (.xlsx)"
-          >
-            {importing ? <Spinner size="sm" /> : <FileUp className="h-4 w-4" />}
-            <span className="hidden sm:inline">Import Excel</span>
-          </button>
+          {/* Import Excel — admin/owner only */}
+          {isAdminOrOwner && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 border border-gray-200 shadow-sm hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-all"
+              title="Import from Excel (.xlsx)"
+            >
+              {importing ? <Spinner size="sm" /> : <FileUp className="h-4 w-4" />}
+              <span className="hidden sm:inline">Import Excel</span>
+            </button>
+          )}
 
-          {/* Import Google Sheet */}
-          <button
-            onClick={() => setShowSheetModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 border border-gray-200 shadow-sm hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-all"
-            title="Import from Google Sheets"
-          >
-            <Sheet className="h-4 w-4 text-emerald-600" />
-            <span className="hidden sm:inline">Google Sheet</span>
-          </button>
+          {/* Import Google Sheet — admin/owner only */}
+          {isAdminOrOwner && (
+            <button
+              onClick={() => setShowSheetModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 border border-gray-200 shadow-sm hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-all"
+              title="Import from Google Sheets"
+            >
+              <Sheet className="h-4 w-4 text-emerald-600" />
+              <span className="hidden sm:inline">Google Sheet</span>
+            </button>
+          )}
 
-          {/* Export */}
+          {/* Export — available to all who can view; phone masked for non-admins */}
           <button
             onClick={handleExport}
             disabled={filtered.length === 0}
             className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 border border-gray-200 shadow-sm hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-all"
-            title="Export to Excel"
+            title={isAdminOrOwner ? "Export to Excel" : "Export to Excel (phone numbers masked)"}
           >
             <Download className="h-4 w-4 text-blue-500" />
-            <span className="hidden sm:inline">Export</span>
+            <span className="hidden sm:inline">Export{!isAdminOrOwner && " 🔒"}</span>
           </button>
 
-          {/* Select toggle */}
-          <button
-            onClick={toggleSelectMode}
-            className={`inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold border shadow-sm transition-all ${
-              selectMode
-                ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/30 dark:border-amber-600 dark:text-amber-400"
-                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
-            }`}
-            title="Select customers"
-          >
-            <CheckSquare className="h-4 w-4" />
-            <span className="hidden sm:inline">{selectMode ? "Cancel" : "Select"}</span>
-          </button>
+          {/* Select toggle — admin/owner only for bulk-delete purposes */}
+          {isAdminOrOwner && (
+            <button
+              onClick={toggleSelectMode}
+              className={`inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold border shadow-sm transition-all ${
+                selectMode
+                  ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/30 dark:border-amber-600 dark:text-amber-400"
+                  : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+              }`}
+              title="Select customers"
+            >
+              <CheckSquare className="h-4 w-4" />
+              <span className="hidden sm:inline">{selectMode ? "Cancel" : "Select"}</span>
+            </button>
+          )}
 
           {/* Bulk Delete — only visible in select mode when items are selected */}
           {selectMode && selected.size > 0 && (
@@ -330,13 +371,23 @@ export default function CustomersPage() {
             <span className="hidden sm:inline">Spending Report</span>
           </Link>
 
-          {/* Add Customer */}
-          <button
-            onClick={openAdd}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 transition-all"
-          >
-            <Plus className="h-4 w-4" /> Add Customer
-          </button>
+          {/* Add Customer — guarded */}
+          {canAdd ? (
+            <button
+              onClick={openAdd}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 transition-all"
+            >
+              <Plus className="h-4 w-4" /> Add Customer
+            </button>
+          ) : (
+            <button
+              onClick={() => denyToast("add customers")}
+              className="inline-flex items-center gap-2 rounded-xl bg-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-500 cursor-not-allowed transition-all dark:bg-gray-700 dark:text-gray-500"
+              title="Permission required"
+            >
+              <Lock className="h-4 w-4" /> Add Customer
+            </button>
+          )}
         </div>
       </div>
 
@@ -405,10 +456,12 @@ export default function CustomersPage() {
                     <td className="px-5 py-3.5 text-gray-600 dark:text-gray-300">
                       {c.phone ? (
                         <div className="flex items-center gap-1.5">
-                          <span>{showPhones[c.id] ? c.phone : maskPhone(c.phone)}</span>
-                          <button onClick={() => togglePhone(c.id)} className="p-1 text-gray-400 hover:text-emerald-600 transition-colors">
-                            {showPhones[c.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                          </button>
+                          <span>{isAdminOrOwner && showPhones[c.id] ? c.phone : maskPhone(c.phone)}</span>
+                          {isAdminOrOwner && (
+                            <button onClick={() => togglePhone(c.id)} className="p-1 text-gray-400 hover:text-emerald-600 transition-colors" title={showPhones[c.id] ? "Hide number" : "Reveal number"}>
+                              {showPhones[c.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                            </button>
+                          )}
                         </div>
                       ) : "—"}
                     </td>
@@ -419,12 +472,24 @@ export default function CustomersPage() {
                         <Link href={`/customers/${c.id}`} className="rounded-lg p-2 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 transition-colors">
                           <Eye className="h-4 w-4" />
                         </Link>
-                        <button onClick={() => openEdit(c)} className="rounded-lg p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-colors">
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => setDelTarget(c)} className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canEdit ? (
+                          <button onClick={() => openEdit(c)} className="rounded-lg p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-colors" title="Edit customer">
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          <button onClick={() => denyToast("edit customers")} className="rounded-lg p-2 text-gray-200 dark:text-gray-700 cursor-not-allowed" title="Permission required">
+                            <Lock className="h-4 w-4" />
+                          </button>
+                        )}
+                        {isAdminOrOwner ? (
+                          <button onClick={() => setDelTarget(c)} className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" title="Delete customer">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          <button onClick={() => denyToast("delete customers")} className="rounded-lg p-2 text-gray-200 dark:text-gray-700 cursor-not-allowed" title="Permission required">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -461,18 +526,20 @@ export default function CustomersPage() {
                   </div>
                   <div className="flex gap-1">
                     <Link href={`/customers/${c.id}`} className="p-1.5 text-gray-400 hover:text-emerald-600"><Eye className="h-4 w-4" /></Link>
-                    <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="h-4 w-4" /></button>
-                    <button onClick={() => setDelTarget(c)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => openEdit(c)} className={`p-1.5 ${canEdit ? "text-gray-400 hover:text-blue-600" : "text-gray-200 dark:text-gray-700 cursor-not-allowed"}`} title={canEdit ? "Edit" : "Permission required"}><Edit2 className="h-4 w-4" /></button>
+                    <button onClick={() => isAdminOrOwner ? setDelTarget(c) : denyToast("delete customers")} className={`p-1.5 ${isAdminOrOwner ? "text-gray-400 hover:text-red-600" : "text-gray-200 dark:text-gray-700 cursor-not-allowed"}`} title={isAdminOrOwner ? "Delete" : "Permission required"}><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs text-gray-600 dark:text-gray-300">
                   {c.phone && (
                     <span className="flex items-center gap-1">
                       <Phone className="h-3 w-3" />
-                      {showPhones[c.id] ? c.phone : maskPhone(c.phone)}
-                      <button onClick={() => togglePhone(c.id)} className="ml-0.5 text-gray-400 hover:text-emerald-600">
-                        {showPhones[c.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                      </button>
+                      {isAdminOrOwner && showPhones[c.id] ? c.phone : maskPhone(c.phone)}
+                      {isAdminOrOwner && (
+                        <button onClick={() => togglePhone(c.id)} className="ml-0.5 text-gray-400 hover:text-emerald-600">
+                          {showPhones[c.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        </button>
+                      )}
                     </span>
                   )}
                   {c.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{c.location}</span>}

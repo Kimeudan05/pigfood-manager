@@ -102,14 +102,14 @@ async function ensureUserDoc(user: User): Promise<AppUser> {
     return { uid: snap.id, ...data } as AppUser;
   }
 
-  // Determine role: first user ever gets 'owner', everyone else gets 'staff'
-  let role: UserRole = "staff";
+  // Determine role: first user ever gets 'owner', everyone else gets 'viewer'
+  let role: UserRole = "viewer";
   let status: UserStatus = "pending";
   try {
     const allUsers = await getDocs(usersRef);
     if (allUsers.empty) { role = "owner"; status = "approved"; }
   } catch {
-    role = "staff";
+    role = "viewer";
     status = "pending";
   }
 
