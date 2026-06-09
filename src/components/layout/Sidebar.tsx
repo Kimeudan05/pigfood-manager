@@ -31,10 +31,11 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
   const { userRole, appUser } = useAuth();
   const isAdmin = userRole === "owner" || userRole === "admin";
 
-  // Build nav items filtered by what the user is allowed to see
+  // Build nav items — all visibility is driven by canDo() which handles
+  // both role defaults and per-user overrides. No hardcoded role checks here.
   const allNavItems = [
     { href: "/dashboard",  label: "Dashboard", icon: LayoutDashboard, show: true },
-    { href: "/customers",  label: "Customers",  icon: Users,           show: canDo(appUser, "canViewCustomers") && isAdmin },
+    { href: "/customers",  label: "Customers",  icon: Users,           show: canDo(appUser, "canViewCustomers") },
     { href: "/sales",      label: "Sales",      icon: ShoppingCart,    show: canDo(appUser, "canViewSales") },
     { href: "/sales/new",  label: "New Sale",   icon: PlusCircle,      show: canDo(appUser, "canAddSale") },
     { href: "/reports",    label: "Reports",    icon: BarChart3,       show: canDo(appUser, "canViewReports") },

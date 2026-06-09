@@ -46,6 +46,13 @@ import {
   MessageSquare,
   Unlock,
   RefreshCw,
+  LayoutDashboard,
+  ShoppingCart,
+  BarChart3,
+  PlusCircle,
+  User,
+  Leaf,
+  EyeOff,
 } from "lucide-react";
 import { formatDate } from "@/utils/formatters";
 
@@ -703,73 +710,157 @@ export default function AdminUsersPage() {
             </div>
 
             {selectedUser ? (
-              <div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100 dark:border-gray-700/50">
-                        <th className="px-5 py-3 text-left text-xs font-medium text-gray-500">Permission</th>
-                        <th className="px-5 py-3 text-center text-xs font-medium text-gray-500">Role Default</th>
-                        <th className="px-5 py-3 text-center text-xs font-medium text-gray-500">Override for {selectedUser.displayName || selectedUser.email}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-gray-700/30">
-                      {PERM_KEYS.map((key) => {
-                        const roleDefault = GRANULAR_DEFAULTS[selectedUser.role][key];
-                        const hasOverride = key in localPerms;
-                        const effectiveVal = hasOverride ? localPerms[key] : roleDefault;
-                        return (
-                          <tr key={key} className={`hover:bg-gray-50/50 dark:hover:bg-gray-700/20 ${hasOverride ? "bg-amber-50/40 dark:bg-amber-900/10" : ""}`}>
-                            <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
-                              {GRANULAR_LABELS[key]}
-                              {hasOverride && (
-                                <span className="ml-2 text-xs text-amber-600 dark:text-amber-400 font-medium">overridden</span>
-                              )}
-                            </td>
-                            <td className="px-5 py-3 text-center">
-                              {roleDefault ? (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-400 mx-auto opacity-50" />
-                              ) : (
-                                <div className="h-4 w-4 rounded border-2 border-gray-200 mx-auto dark:border-gray-600 opacity-50" />
-                              )}
-                            </td>
-                            <td className="px-5 py-3 text-center">
-                              <button
-                                onClick={() => togglePerm(key)}
-                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
-                                  effectiveVal ? "bg-emerald-500" : "bg-gray-200 dark:bg-gray-600"
-                                }`}
-                                role="switch"
-                                aria-checked={effectiveVal}
-                              >
-                                <span
-                                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform ${
-                                    effectiveVal ? "translate-x-4" : "translate-x-0"
+              <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-gray-100 dark:divide-gray-700/50">
+                {/* Left: Overrides Table */}
+                <div className="flex-1">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 dark:border-gray-700/50">
+                          <th className="px-5 py-3 text-left text-xs font-medium text-gray-500">Permission</th>
+                          <th className="px-5 py-3 text-center text-xs font-medium text-gray-500">Role Default</th>
+                          <th className="px-5 py-3 text-center text-xs font-medium text-gray-500">Override for {selectedUser.displayName || selectedUser.email}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50 dark:divide-gray-700/30">
+                        {PERM_KEYS.map((key) => {
+                          const roleDefault = GRANULAR_DEFAULTS[selectedUser.role][key];
+                          const hasOverride = key in localPerms;
+                          const effectiveVal = hasOverride ? localPerms[key] : roleDefault;
+                          return (
+                            <tr key={key} className={`hover:bg-gray-50/50 dark:hover:bg-gray-700/20 ${hasOverride ? "bg-amber-50/40 dark:bg-amber-900/10" : ""}`}>
+                              <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
+                                {GRANULAR_LABELS[key]}
+                                {hasOverride && (
+                                  <span className="ml-2 text-xs text-amber-600 dark:text-amber-400 font-medium">overridden</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3 text-center">
+                                {roleDefault ? (
+                                  <CheckCircle2 className="h-4 w-4 text-emerald-400 mx-auto opacity-50" />
+                                ) : (
+                                  <div className="h-4 w-4 rounded border-2 border-gray-200 mx-auto dark:border-gray-600 opacity-50" />
+                                )}
+                              </td>
+                              <td className="px-5 py-3 text-center">
+                                <button
+                                  onClick={() => togglePerm(key)}
+                                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+                                    effectiveVal ? "bg-emerald-500" : "bg-gray-200 dark:bg-gray-600"
                                   }`}
-                                />
-                              </button>
-                            </td>
-                          </tr>
+                                  role="switch"
+                                  aria-checked={effectiveVal}
+                                >
+                                  <span
+                                    className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform ${
+                                      effectiveVal ? "translate-x-4" : "translate-x-0"
+                                    }`}
+                                  />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 dark:border-gray-700/50">
+                    <button
+                      onClick={() => { setLocalPerms({}); }}
+                      className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                    >
+                      Reset to role defaults
+                    </button>
+                    <button
+                      onClick={savePerms}
+                      disabled={savingPerms}
+                      className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-600/25"
+                    >
+                      {savingPerms ? <Spinner size="sm" /> : <ShieldCheck className="h-4 w-4" />}
+                      Save Permissions
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right: Live Sidebar Preview */}
+                <div className="w-full lg:w-80 p-5 bg-gray-50/50 dark:bg-gray-900/10 flex flex-col justify-start shrink-0 border-t lg:border-t-0">
+                  <div className="mb-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
+                      <LayoutDashboard className="h-3.5 w-3.5 text-emerald-600" /> Sidebar Live Preview
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Visual preview of sidebar navigation for <strong>{selectedUser.displayName || selectedUser.email}</strong>.
+                    </p>
+                  </div>
+
+                  {/* Emerald Gradient Sidebar Mockup */}
+                  <div className="rounded-2xl bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-950 text-white p-4 shadow-xl border border-emerald-800/50 flex flex-col space-y-4 w-full">
+                    {/* Brand */}
+                    <div className="flex items-center gap-2.5 pb-3 border-b border-emerald-800/50">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600/50 backdrop-blur-sm">
+                        <Leaf className="h-4.5 w-4.5 text-emerald-300" />
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-bold tracking-tight">Takataka</h5>
+                        <p className="text-[9px] text-emerald-300/70">Pigfood Manager</p>
+                      </div>
+                    </div>
+
+                    {/* Navigation Links Mockup */}
+                    <div className="space-y-1">
+                      {[
+                        { label: "Dashboard", icon: LayoutDashboard, show: true },
+                        { label: "Customers", icon: Users, show: (() => {
+                            const roleDefault = GRANULAR_DEFAULTS[selectedUser.role]["canViewCustomers"];
+                            return "canViewCustomers" in localPerms ? (localPerms["canViewCustomers"] ?? false) : roleDefault;
+                          })()
+                        },
+                        { label: "Sales", icon: ShoppingCart, show: (() => {
+                            const roleDefault = GRANULAR_DEFAULTS[selectedUser.role]["canViewSales"];
+                            return "canViewSales" in localPerms ? (localPerms["canViewSales"] ?? false) : roleDefault;
+                          })()
+                        },
+                        { label: "New Sale", icon: PlusCircle, show: (() => {
+                            const roleDefault = GRANULAR_DEFAULTS[selectedUser.role]["canAddSale"];
+                            return "canAddSale" in localPerms ? (localPerms["canAddSale"] ?? false) : roleDefault;
+                          })()
+                        },
+                        { label: "Reports", icon: BarChart3, show: (() => {
+                            const roleDefault = GRANULAR_DEFAULTS[selectedUser.role]["canViewReports"];
+                            return "canViewReports" in localPerms ? (localPerms["canViewReports"] ?? false) : roleDefault;
+                          })()
+                        },
+                        { label: "Profile", icon: User, show: true },
+                        { label: "Admin", icon: ShieldCheck, show: selectedUser.role === "owner" || selectedUser.role === "admin" }
+                      ].map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <div
+                            key={item.label}
+                            className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-xs font-medium transition-all ${
+                              item.show
+                                ? "text-emerald-100/90 bg-white/10"
+                                : "text-emerald-950/40 bg-black/10 border border-transparent line-through select-none"
+                            }`}
+                          >
+                            <Icon
+                              className={`h-4 w-4 shrink-0 ${
+                                item.show ? "text-emerald-400" : "text-emerald-950/25"
+                              }`}
+                            />
+                            <span className="flex-1 truncate">{item.label}</span>
+                            {item.show ? (
+                              <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1 py-0.2 rounded font-semibold">Visible</span>
+                            ) : (
+                              <div className="flex items-center gap-0.5 text-[9px] text-emerald-950/45 font-semibold">
+                                <Lock className="h-2.5 w-2.5" /> Hidden
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 dark:border-gray-700/50">
-                  <button
-                    onClick={() => { setLocalPerms({}); }}
-                    className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                  >
-                    Reset to role defaults
-                  </button>
-                  <button
-                    onClick={savePerms}
-                    disabled={savingPerms}
-                    className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-600/25"
-                  >
-                    {savingPerms ? <Spinner size="sm" /> : <ShieldCheck className="h-4 w-4" />}
-                    Save Permissions
-                  </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (

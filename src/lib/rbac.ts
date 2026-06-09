@@ -95,14 +95,14 @@ export const GRANULAR_DEFAULTS: Record<UserRole, GranularPermissions> = {
   },
   staff: {
     canViewDashboard: true,
-    canViewCustomers: true,
+    canViewCustomers: false,  // hidden from sidebar by default; override per-user if needed
     canAddCustomers: false,
     canEditCustomer: false,
     canViewSales: true,
     canAddSale: true,
     canEditSale: false,
     canDeleteSale: false,
-    canViewReports: true,   // staff can view reports
+    canViewReports: true,
     canApproveUser: false,
   },
   viewer: {

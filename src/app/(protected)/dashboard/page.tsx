@@ -40,15 +40,24 @@ export default function DashboardPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasCustomerAccess, setHasCustomerAccess] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [c, s] = await Promise.all([getAllCustomers(), getAllSales()]);
-        setCustomers(c);
-        setSales(s);
+        const salesData = await getAllSales();
+        setSales(salesData);
       } catch (err) {
-        console.error("Failed to load dashboard data:", err);
+        console.error("Failed to load dashboard sales:", err);
+      }
+
+      try {
+        const customersData = await getAllCustomers();
+        setCustomers(customersData);
+        setHasCustomerAccess(true);
+      } catch (err) {
+        console.error("Failed to load dashboard customers:", err);
+        setHasCustomerAccess(false);
       } finally {
         setLoading(false);
       }
@@ -173,7 +182,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Total Customers"
-          value={stats.totalCustomers.toString()}
+          value={hasCustomerAccess ? stats.totalCustomers.toString() : "🔒 No Access"}
           icon={<Users className="h-5 w-5" />}
           color="emerald"
           delay="stagger-1"
