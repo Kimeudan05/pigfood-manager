@@ -102,7 +102,7 @@ export const GRANULAR_DEFAULTS: Record<UserRole, GranularPermissions> = {
     canAddSale: true,
     canEditSale: false,
     canDeleteSale: false,
-    canViewReports: false,
+    canViewReports: true,   // staff can view reports
     canApproveUser: false,
   },
   viewer: {

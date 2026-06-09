@@ -85,7 +85,8 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
                 key={item.href}
                 href={item.href}
                 onClick={onMobileClose}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200 ${
+                title={item.label}
+                className={`group relative flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200 ${
                   active
                     ? "bg-white/15 text-white shadow-lg shadow-emerald-900/20"
                     : "text-emerald-100/70 hover:bg-white/10 hover:text-white"
@@ -106,6 +107,14 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
                 {active && (
                   <div className={`ml-auto h-2 w-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 ${collapsed ? "lg:hidden" : ""}`} />
                 )}
+                {/* Tooltip — only shown on desktop when sidebar is collapsed */}
+                <span
+                  className={`pointer-events-none absolute left-full ml-3 hidden whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 lg:block ${
+                    collapsed ? "" : "lg:hidden"
+                  }`}
+                >
+                  {item.label}
+                </span>
               </Link>
             );
           })}
@@ -117,7 +126,8 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
               <Link
                 href="/admin/users"
                 onClick={onMobileClose}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200 mt-1 ${
+                title="Admin"
+                className={`group relative flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200 mt-1 ${
                   active
                     ? "bg-white/15 text-white shadow-lg shadow-emerald-900/20"
                     : "text-emerald-100/70 hover:bg-white/10 hover:text-white"
@@ -138,6 +148,14 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
                 {active && (
                   <div className={`ml-auto h-2 w-2 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50 ${collapsed ? "lg:hidden" : ""}`} />
                 )}
+                {/* Tooltip */}
+                <span
+                  className={`pointer-events-none absolute left-full ml-3 hidden whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 lg:block ${
+                    collapsed ? "" : "lg:hidden"
+                  }`}
+                >
+                  Admin Panel
+                </span>
               </Link>
             );
           })()}
