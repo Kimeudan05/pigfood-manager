@@ -71,14 +71,16 @@ export default function CustomersPage() {
     finally { setLoading(false); }
   }
 
-  // Guard: redirect if no view permission
+  // Guard + load: wait for appUser to resolve before making any Firestore reads.
+  // Prevents permission-denied errors for viewers/staff who can't access customers.
   useEffect(() => {
-    if (!loading && appUser && !canViewCustomers) {
+    if (!appUser) return; // still loading auth — wait
+    if (!canViewCustomers) {
       router.replace("/dashboard");
+      return;
     }
-  }, [loading, appUser, canViewCustomers]);
-
-  useEffect(() => { load(); }, []);
+    load();
+  }, [appUser]);
 
   const filtered = useMemo(() => {
     const t = search.toLowerCase();

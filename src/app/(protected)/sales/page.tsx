@@ -37,17 +37,20 @@ export default function SalesPage() {
   const [delLoading, setDelLoading] = useState(false);
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
 
-  // Guard: redirect viewers away from sales
-  useEffect(() => {
-    if (appUser && !canViewSales) {
-      router.replace("/dashboard");
-    }
-  }, [appUser, canViewSales]);
-
+  // Guard + load: wait for appUser to resolve before making any Firestore reads.
+  // This prevents a permission-denied error for viewers before the redirect fires.
   async function load() {
     try { setSales(await getAllSales()); } catch { addToast("error", "Failed to load sales"); } finally { setLoading(false); }
   }
-  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!appUser) return; // still loading auth — wait
+    if (!canViewSales) {
+      router.replace("/dashboard");
+      return;
+    }
+    load();
+  }, [appUser]);
 
   const filtered = useMemo(() => {
     let result = sales;
