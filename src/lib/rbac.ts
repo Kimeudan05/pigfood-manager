@@ -41,7 +41,7 @@ const PERMISSION_MATRIX: Record<UserRole, Permissions> = {
   staff: {
     manageUsers: false,
     deleteRecords: false,
-    viewReports: false,
+    viewReports: true,
     createRecords: true,
     editRecords: false,
   },

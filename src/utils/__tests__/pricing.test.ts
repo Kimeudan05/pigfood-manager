@@ -6,7 +6,7 @@ describe("Pricing Utility", () => {
   describe("PRODUCTS Configuration", () => {
     it("should contain the correct product list and prices", () => {
       expect(PRODUCTS).toBeInstanceOf(Array);
-      expect(PRODUCTS.length).toBe(7);
+      expect(PRODUCTS.length).toBe(8);
 
       const cookedFood = PRODUCTS.find((p) => p.key === "cookedFood");
       expect(cookedFood).toBeDefined();
@@ -42,8 +42,9 @@ describe("Pricing Utility", () => {
         meat25: 4,     // 4 * 25 = 100
         meat30: 0,
         bones: 10,     // 10 * 15 = 150
-        gradeA: 5,      // 5 * 5 = 25
-        veggies: 3,    // 3 * 6 = 18
+        bones10: 0,
+        gradeA: 5,     // 5 * 5  = 25
+        veggies: 3,    // 3 * 6  = 18
       };
 
       const totals = calculateTotals(items);
@@ -66,12 +67,13 @@ describe("Pricing Utility", () => {
       const empty = getEmptySaleItems();
       expect(empty).toEqual({
         cookedFood: 0,
-        bread: 0,
-        meat25: 0,
-        meat30: 0,
-        bones: 0,
-        gradeA: 0,
-        veggies: 0,
+        bread:      0,
+        meat25:     0,
+        meat30:     0,
+        bones:      0,
+        bones10:    0,
+        gradeA:     0,
+        veggies:    0,
       });
     });
   });

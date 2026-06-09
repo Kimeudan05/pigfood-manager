@@ -9,11 +9,65 @@ import { PRODUCTS } from "@/utils/pricing";
 import { salesToCSV, downloadCSV } from "@/utils/csv";
 import { PageSpinner } from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
-import { BarChart3, Download, Calendar, TrendingUp, Package, DollarSign } from "lucide-react";
+import { BarChart3, Download, Calendar, TrendingUp, Package, DollarSign, ChevronDown, ChevronRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from "recharts";
 import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 
-const COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899"];
+// ─── Colour palette ──────────────────────────────────────────────────────────
+const COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"];
+
+// ─── Report product groups ───────────────────────────────────────────────────
+// Defines how individual PRODUCTS collapse into grouped rows in reports.
+// Single-member groups still appear as standalone rows.
+const REPORT_GROUPS: Array<{
+  key: string;
+  label: string;
+  color: string;
+  members: { productKey: string; label: string; totalKey: string; price: number }[];
+}> = [
+  {
+    key: "cookedFood",
+    label: "Cooked Food",
+    color: COLORS[0],
+    members: [{ productKey: "cookedFood", label: "Cooked Food", totalKey: "cookedFoodTotal", price: 20 }],
+  },
+  {
+    key: "bread",
+    label: "Bread",
+    color: COLORS[1],
+    members: [{ productKey: "bread", label: "Bread", totalKey: "breadTotal", price: 20 }],
+  },
+  {
+    key: "meat",
+    label: "Meat",
+    color: COLORS[2],
+    members: [
+      { productKey: "meat25", label: "Meat @ 25", totalKey: "meat25Total", price: 25 },
+      { productKey: "meat30", label: "Meat @ 30", totalKey: "meat30Total", price: 30 },
+    ],
+  },
+  {
+    key: "bones",
+    label: "Bones",
+    color: COLORS[3],
+    members: [
+      { productKey: "bones",   label: "Bones @ 15", totalKey: "bonesTotal",   price: 15 },
+      { productKey: "bones10", label: "Bones @ 10", totalKey: "bones10Total", price: 10 },
+    ],
+  },
+  {
+    key: "gradeA",
+    label: "Grade A",
+    color: COLORS[4],
+    members: [{ productKey: "gradeA", label: "Grade A", totalKey: "gradeATotal", price: 5 }],
+  },
+  {
+    key: "veggies",
+    label: "Veggies",
+    color: COLORS[5],
+    members: [{ productKey: "veggies", label: "Veggies", totalKey: "veggiesTotal", price: 6 }],
+  },
+];
 
 export default function ReportsPage() {
   const { addToast } = useToast();
@@ -23,6 +77,8 @@ export default function ReportsPage() {
   const [endDate, setEndDate] = useState("");
   const [filterMode, setFilterMode] = useState<"range" | "single">("range");
   const [singleDate, setSingleDate] = useState("");
+  // Tracks which multi-member groups are expanded in the revenue table
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     getAllSales().then(setSales).catch(() => addToast("error", "Failed to load sales")).finally(() => setLoading(false));
@@ -50,7 +106,7 @@ export default function ReportsPage() {
     });
   }, [sales, filterMode, startDate, endDate, singleDate]);
 
-  // Daily breakdown for the filtered period
+  // ── Daily breakdown ───────────────────────────────────────────────────────
   const dailyData = useMemo(() => {
     const map = new Map<string, { day: string; sales: number; revenue: number }>();
     filteredSales.forEach(s => {
@@ -65,16 +121,39 @@ export default function ReportsPage() {
     return Array.from(map.values()).sort((a, b) => a.day.localeCompare(b.day)).slice(-30);
   }, [filteredSales]);
 
-  // Product distribution
-  const productData = useMemo(() => {
-    return PRODUCTS.map((p, i) => ({
-      name: p.label,
-      value: filteredSales.reduce((sum, s) => sum + (s[p.key] || 0), 0),
-      color: COLORS[i % COLORS.length],
-    })).filter(p => p.value > 0);
+  // ── Grouped revenue data ──────────────────────────────────────────────────
+  // Used for bar chart and pie chart — Meat and Bones are combined totals.
+  const groupedRevenueData = useMemo(() => {
+    return REPORT_GROUPS.map((group, i) => {
+      const units   = group.members.reduce((sum, m) => sum + filteredSales.reduce((s2, sale) => s2 + ((sale as any)[m.productKey] || 0), 0), 0);
+      const revenue = group.members.reduce((sum, m) => sum + filteredSales.reduce((s2, sale) => s2 + ((sale as any)[m.totalKey]   || 0), 0), 0);
+      return { name: group.label, units, revenue, color: group.color, groupKey: group.key };
+    }).filter(g => g.units > 0);
   }, [filteredSales]);
 
-  // Top Customers by Spending
+  // ── Pie chart product distribution ───────────────────────────────────────
+  const productData = useMemo(() => groupedRevenueData, [groupedRevenueData]);
+
+  // ── Revenue table rows (grouped + expandable sub-rows) ───────────────────
+  const revenueTableRows = useMemo(() => {
+    const totalRevenue = filteredSales.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
+
+    return REPORT_GROUPS.map((group, i) => {
+      const memberStats = group.members.map(m => {
+        const units   = filteredSales.reduce((sum, s) => sum + ((s as any)[m.productKey] || 0), 0);
+        const revenue = filteredSales.reduce((sum, s) => sum + ((s as any)[m.totalKey]   || 0), 0);
+        return { ...m, units, revenue };
+      });
+      const totalUnits   = memberStats.reduce((sum, m) => sum + m.units,   0);
+      const totalRev     = memberStats.reduce((sum, m) => sum + m.revenue, 0);
+      const share        = totalRevenue > 0 ? Math.round((totalRev / totalRevenue) * 100) : 0;
+      const isMulti      = group.members.length > 1;
+
+      return { group, memberStats, totalUnits, totalRev, share, isMulti, color: group.color };
+    }).filter(r => r.totalUnits > 0);
+  }, [filteredSales]);
+
+  // ── Top customers ─────────────────────────────────────────────────────────
   const topCustomersData = useMemo(() => {
     const map = new Map<string, { name: string; spent: number }>();
     filteredSales.forEach(s => {
@@ -82,29 +161,19 @@ export default function ReportsPage() {
       existing.spent += s.grandTotal || 0;
       map.set(s.customerId, existing);
     });
-    return Array.from(map.values())
-      .sort((a, b) => b.spent - a.spent)
-      .slice(0, 5); // Top 5
-  }, [filteredSales]);
-
-  // Revenue breakdown per product
-  const revenueByProduct = useMemo(() => {
-    const data = PRODUCTS.map((p, i) => {
-      const units = filteredSales.reduce((sum, s) => sum + ((s[p.key] as number) || 0), 0);
-      const revenue = filteredSales.reduce(
-        (sum, s) => sum + (((s as unknown as Record<string, number>)[p.totalKey]) || 0),
-        0
-      );
-      return { name: p.label, units, revenue, price: p.price, color: COLORS[i % COLORS.length] };
-    }).filter(p => p.units > 0);
-    const total = data.reduce((sum, p) => sum + p.revenue, 0);
-    return data
-      .map(p => ({ ...p, share: total > 0 ? Math.round((p.revenue / total) * 100) : 0 }))
-      .sort((a, b) => b.revenue - a.revenue);
+    return Array.from(map.values()).sort((a, b) => b.spent - a.spent).slice(0, 5);
   }, [filteredSales]);
 
   const totalRevenue = filteredSales.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
   const avgSale = filteredSales.length > 0 ? totalRevenue / filteredSales.length : 0;
+  const totalUnits = filteredSales.reduce((sum, s) =>
+    sum +
+    (s.cookedFood || 0) + (s.bread  || 0) +
+    (s.meat25     || 0) + (s.meat30 || 0) +
+    (s.bones      || 0) + (s.bones10 || 0) +
+    (s.gradeA     || 0) + (s.veggies || 0),
+    0
+  );
 
   function handleExport() {
     if (filteredSales.length === 0) { addToast("warning", "No data to export"); return; }
@@ -114,6 +183,10 @@ export default function ReportsPage() {
       : (startDate && endDate ? `${startDate}_to_${endDate}` : "all");
     downloadCSV(csv, `takataka-report-${dateLabel}`);
     addToast("success", "Report exported!");
+  }
+
+  function toggleGroup(key: string) {
+    setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
   }
 
   if (loading) return <PageSpinner />;
@@ -134,73 +207,47 @@ export default function ReportsPage() {
       {/* Filter Options */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
         <div className="flex flex-col gap-4">
-          {/* Mode Switcher */}
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Filter Type:</span>
             <div className="inline-flex rounded-xl bg-gray-100 p-1 dark:bg-gray-700">
-              <button
-                type="button"
+              <button type="button"
                 onClick={() => { setFilterMode("range"); setStartDate(""); setEndDate(""); setSingleDate(""); }}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                   filterMode === "range"
                     ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
                     : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                }`}
-              >
-                Date Range
-              </button>
-              <button
-                type="button"
+                }`}>Date Range</button>
+              <button type="button"
                 onClick={() => { setFilterMode("single"); setStartDate(""); setEndDate(""); setSingleDate(""); }}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                   filterMode === "single"
                     ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
                     : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                }`}
-              >
-                Single Day
-              </button>
+                }`}>Single Day</button>
             </div>
           </div>
 
-          {/* Date Inputs */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <Calendar className="h-5 w-5 text-emerald-500 hidden sm:block" />
-            
             {filterMode === "range" ? (
               <>
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Date Range:</span>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                  className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                  className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
                 <span className="text-gray-400">to</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                  className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                  className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
               </>
             ) : (
               <>
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Specific Date:</span>
-                <input
-                  type="date"
-                  value={singleDate}
-                  onChange={e => setSingleDate(e.target.value)}
-                  className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
+                <input type="date" value={singleDate} onChange={e => setSingleDate(e.target.value)}
+                  className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
               </>
             )}
-
             {((filterMode === "range" && (startDate || endDate)) || (filterMode === "single" && singleDate)) && (
-              <button
-                onClick={() => { setStartDate(""); setEndDate(""); setSingleDate(""); }}
-                className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors ml-auto sm:ml-0"
-              >
+              <button onClick={() => { setStartDate(""); setEndDate(""); setSingleDate(""); }}
+                className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors ml-auto sm:ml-0">
                 Clear Filter
               </button>
             )}
@@ -237,9 +284,7 @@ export default function ReportsPage() {
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">Items Sold</p>
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {filteredSales.reduce((sum, s) => sum + (s.cookedFood || 0) + (s.bread || 0) + (s.meat25 || 0) + (s.meat30 || 0) + (s.bones || 0) + (s.gradeA || 0) + (s.veggies || 0), 0).toLocaleString()}
-          </p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalUnits.toLocaleString()}</p>
           <p className="text-xs text-gray-500">total units</p>
         </div>
       </div>
@@ -267,13 +312,13 @@ export default function ReportsPage() {
           </div>
 
           <div className="space-y-4">
-            {/* Product Distribution */}
+            {/* Product Distribution Pie (grouped) */}
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
               <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Product Distribution</h3>
               <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={productData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={35} paddingAngle={2}>
+                    <Pie data={productData} dataKey="units" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={35} paddingAngle={2}>
                       {productData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                     </Pie>
                     <Tooltip formatter={(v: any) => [v, "Units"]} />
@@ -285,7 +330,7 @@ export default function ReportsPage() {
                   <div key={i} className="flex items-center gap-2 text-xs">
                     <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: p.color }} />
                     <span className="text-gray-600 dark:text-gray-300">{p.name}</span>
-                    <span className="ml-auto font-medium text-gray-900 dark:text-white">{p.value}</span>
+                    <span className="ml-auto font-medium text-gray-900 dark:text-white">{p.units}</span>
                   </div>
                 ))}
               </div>
@@ -295,10 +340,8 @@ export default function ReportsPage() {
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Top Customers</h3>
-                <Link
-                  href="/reports/customer-spending"
-                  className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
-                >
+                <Link href="/reports/customer-spending"
+                  className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors">
                   View All
                 </Link>
               </div>
@@ -321,7 +364,7 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {/* Revenue per Item */}
+      {/* Revenue per Item (grouped, expandable) */}
       {filteredSales.length > 0 && (
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
           <div className="flex items-center gap-3 mb-5">
@@ -330,15 +373,17 @@ export default function ReportsPage() {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Revenue per Item</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Breakdown of revenue contribution per product</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Meat and Bones are grouped — click <ChevronRight className="inline h-3 w-3" /> to see per-price breakdown
+              </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Bar Chart */}
+            {/* Bar Chart — grouped data */}
             <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueByProduct} layout="vertical" margin={{ left: 8, right: 40, top: 4, bottom: 4 }}>
+                <BarChart data={groupedRevenueData} layout="vertical" margin={{ left: 8, right: 40, top: 4, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
                   <XAxis type="number" fontSize={10} tickLine={false} axisLine={false}
                     tickFormatter={(v) => `KES ${Number(v).toLocaleString()}`} />
@@ -348,45 +393,85 @@ export default function ReportsPage() {
                     formatter={(v: any) => [formatCurrency(Number(v)), "Revenue"]}
                   />
                   <Bar dataKey="revenue" radius={[0, 6, 6, 0]}>
-                    {revenueByProduct.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                    <LabelList dataKey="share" position="right" formatter={(v: any) => `${v}%`} style={{ fontSize: 11, fill: "#6b7280", fontWeight: 600 }} />
+                    {groupedRevenueData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    <LabelList dataKey="revenue" position="right"
+                      formatter={(v: any) => {
+                        const share = totalRevenue > 0 ? Math.round((Number(v) / totalRevenue) * 100) : 0;
+                        return `${share}%`;
+                      }}
+                      style={{ fontSize: 11, fill: "#6b7280", fontWeight: 600 }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Summary Table */}
+            {/* Summary Table — grouped + expandable */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-700/50">
                     <th className="pb-2.5 text-left font-semibold text-gray-500 dark:text-gray-400">Product</th>
                     <th className="pb-2.5 text-center font-semibold text-gray-500 dark:text-gray-400">Units</th>
-                    <th className="pb-2.5 text-center font-semibold text-gray-500 dark:text-gray-400">Unit Price</th>
+                    <th className="pb-2.5 text-center font-semibold text-gray-500 dark:text-gray-400">Price</th>
                     <th className="pb-2.5 text-right font-semibold text-gray-500 dark:text-gray-400">Revenue</th>
                     <th className="pb-2.5 text-right font-semibold text-gray-500 dark:text-gray-400">Share</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-700/30">
-                  {revenueByProduct.map((p, i) => (
-                    <tr key={i} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
-                      <td className="py-2.5 pr-3">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
-                          <span className="font-medium text-gray-900 dark:text-white">{p.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-2.5 text-center text-gray-600 dark:text-gray-300">{p.units.toLocaleString()}</td>
-                      <td className="py-2.5 text-center text-gray-600 dark:text-gray-300">KES {p.price}</td>
-                      <td className="py-2.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(p.revenue)}</td>
-                      <td className="py-2.5 text-right">
-                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                          {p.share}%
-                        </span>
-                      </td>
-                    </tr>
+                  {revenueTableRows.map((row, i) => (
+                    <React.Fragment key={row.group.key}>
+                      {/* Group / parent row */}
+                      <tr
+                        className={`transition-colors ${row.isMulti ? "cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10" : "hover:bg-gray-50/50 dark:hover:bg-gray-700/20"}`}
+                        onClick={() => row.isMulti && toggleGroup(row.group.key)}
+                      >
+                        <td className="py-2.5 pr-3">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+                            <span className={`font-semibold text-gray-900 dark:text-white ${row.isMulti ? "text-[13px]" : "font-medium"}`}>
+                              {row.group.label}
+                            </span>
+                            {row.isMulti && (
+                              expandedGroups[row.group.key]
+                                ? <ChevronDown className="h-3.5 w-3.5 text-gray-400 ml-0.5" />
+                                : <ChevronRight className="h-3.5 w-3.5 text-gray-400 ml-0.5" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2.5 text-center text-gray-700 dark:text-gray-200 font-medium">{row.totalUnits.toLocaleString()}</td>
+                        <td className="py-2.5 text-center text-gray-400 dark:text-gray-500 text-[11px]">
+                          {row.isMulti ? "mixed" : `KES ${row.memberStats[0]?.price ?? ""}`}
+                        </td>
+                        <td className="py-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(row.totalRev)}</td>
+                        <td className="py-2.5 text-right">
+                          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                            {row.share}%
+                          </span>
+                        </td>
+                      </tr>
+
+                      {/* Sub-rows (only for multi-member groups when expanded) */}
+                      {row.isMulti && expandedGroups[row.group.key] && row.memberStats.map((m, j) => (
+                        m.units > 0 && (
+                          <tr key={j} className="bg-gray-50/70 dark:bg-gray-700/20">
+                            <td className="py-2 pr-3 pl-6">
+                              <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-gray-300 dark:bg-gray-600" />
+                                <span className="text-gray-500 dark:text-gray-400">{m.label}</span>
+                              </div>
+                            </td>
+                            <td className="py-2 text-center text-gray-500 dark:text-gray-400">{m.units.toLocaleString()}</td>
+                            <td className="py-2 text-center text-gray-400 dark:text-gray-500 text-[11px]">KES {m.price}</td>
+                            <td className="py-2 text-right text-gray-600 dark:text-gray-300 font-medium">{formatCurrency(m.revenue)}</td>
+                            <td className="py-2 text-right">
+                              <span className="text-[10px] text-gray-400">
+                                {row.totalRev > 0 ? Math.round((m.revenue / row.totalRev) * 100) : 0}% of {row.group.label}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      ))}
+                    </React.Fragment>
                   ))}
                 </tbody>
                 <tfoot>
@@ -404,26 +489,35 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {/* Detailed Table */}
+      {/* Sales Detail — raw granular columns (all individual products shown) */}
       {filteredSales.length > 0 && (
         <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden dark:border-gray-700/50 dark:bg-gray-800/50">
-          <div className="p-5"><h3 className="text-sm font-semibold text-gray-900 dark:text-white">Sales Detail</h3></div>
+          <div className="p-5">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Sales Detail</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Individual rows per sale — all product columns</p>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead><tr className="border-t border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/50">
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Sale #</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Customer</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Date</th>
-                {PRODUCTS.map(p => <th key={p.key} className="px-3 py-3 text-center font-medium text-gray-500">{p.label}</th>)}
-                <th className="px-4 py-3 text-right font-medium text-gray-500">Total</th>
-              </tr></thead>
+              <thead>
+                <tr className="border-t border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/50">
+                  <th className="px-4 py-3 text-left font-medium text-gray-500">Sale #</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-500">Customer</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-500">Date</th>
+                  {PRODUCTS.map(p => <th key={p.key} className="px-3 py-3 text-center font-medium text-gray-500">{p.label}</th>)}
+                  <th className="px-4 py-3 text-right font-medium text-gray-500">Total</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700/30">
                 {filteredSales.slice(0, 50).map(s => (
                   <tr key={s.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20">
                     <td className="px-4 py-2.5 font-mono text-gray-600 dark:text-gray-300">{s.saleNumber}</td>
                     <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-white">{s.customerName}</td>
                     <td className="px-4 py-2.5 text-gray-500">{formatDate(s.createdAt)}</td>
-                    {PRODUCTS.map(p => <td key={p.key} className="px-3 py-2.5 text-center text-gray-600 dark:text-gray-300">{(s[p.key] as number) || "—"}</td>)}
+                    {PRODUCTS.map(p => (
+                      <td key={p.key} className="px-3 py-2.5 text-center text-gray-600 dark:text-gray-300">
+                        {((s as any)[p.key] || 0) > 0 ? (s as any)[p.key] : "—"}
+                      </td>
+                    ))}
                     <td className="px-4 py-2.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(s.grandTotal)}</td>
                   </tr>
                 ))}

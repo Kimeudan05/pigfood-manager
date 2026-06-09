@@ -24,7 +24,7 @@ export default function EditSalePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<SaleItems>({
-    cookedFood: 0, bread: 0, meat25: 0, meat30: 0, bones: 0, gradeA: 0, veggies: 0,
+    cookedFood: 0, bread: 0, meat25: 0, meat30: 0, bones: 0, bones10: 0, gradeA: 0, veggies: 0,
   });
 
   useEffect(() => {
@@ -35,12 +35,13 @@ export default function EditSalePage() {
         setCustomers(c);
         setItems({
           cookedFood: s.cookedFood,
-          bread: s.bread,
-          meat25: s.meat25,
-          meat30: s.meat30,
-          bones: s.bones,
-          gradeA: s.gradeA,
-          veggies: s.veggies,
+          bread:      s.bread,
+          meat25:     s.meat25,
+          meat30:     s.meat30,
+          bones:      s.bones,
+          bones10:    s.bones10 ?? 0,  // default 0 for old records
+          gradeA:     s.gradeA,
+          veggies:    s.veggies,
         });
       })
       .catch(() => addToast("error", "Failed to load sale"))

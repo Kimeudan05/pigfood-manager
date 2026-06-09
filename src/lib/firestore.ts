@@ -84,12 +84,13 @@ export async function searchCustomers(searchTerm: string): Promise<Customer[]> {
 export async function addSale(data: SaleFormData, userId: string): Promise<string> {
   const items: SaleItems = {
     cookedFood: data.cookedFood,
-    bread: data.bread,
-    meat25: data.meat25,
-    meat30: data.meat30,
-    bones: data.bones,
-    gradeA: data.gradeA,
-    veggies: data.veggies,
+    bread:      data.bread,
+    meat25:     data.meat25,
+    meat30:     data.meat30,
+    bones:      data.bones,
+    bones10:    data.bones10 ?? 0,
+    gradeA:     data.gradeA,
+    veggies:    data.veggies,
   };
 
   const totals: SaleTotals = calculateTotals(items);
@@ -112,12 +113,13 @@ export async function addSale(data: SaleFormData, userId: string): Promise<strin
 export async function updateSale(id: string, data: SaleFormData): Promise<void> {
   const items: SaleItems = {
     cookedFood: data.cookedFood,
-    bread: data.bread,
-    meat25: data.meat25,
-    meat30: data.meat30,
-    bones: data.bones,
-    gradeA: data.gradeA,
-    veggies: data.veggies,
+    bread:      data.bread,
+    meat25:     data.meat25,
+    meat30:     data.meat30,
+    bones:      data.bones,
+    bones10:    data.bones10 ?? 0,
+    gradeA:     data.gradeA,
+    veggies:    data.veggies,
   };
 
   const totals: SaleTotals = calculateTotals(items);
