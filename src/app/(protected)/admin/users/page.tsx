@@ -445,7 +445,7 @@ export default function AdminUsersPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3.5">
-                      {u.uid === appUser?.uid ? (
+                      {u.uid === appUser?.uid || (userRole === "admin" && u.role === "owner") ? (
                         <span className={`inline-block text-xs font-medium px-2.5 py-1 rounded-full ${ROLE_BADGE_CLASSES[u.role]}`}>
                           {ROLE_LABELS[u.role]}
                         </span>
@@ -501,32 +501,36 @@ export default function AdminUsersPage() {
                         )}
 
                         {/* Edit User */}
-                        <button
-                          onClick={() => {
-                            setEditingUser(u);
-                            setEditDisplayName(u.displayName || "");
-                            setEditRole(u.role);
-                          }}
-                          className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
-                          title="Edit User"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
+                        {!(userRole === "admin" && u.role === "owner") && (
+                          <button
+                            onClick={() => {
+                              setEditingUser(u);
+                              setEditDisplayName(u.displayName || "");
+                              setEditRole(u.role);
+                            }}
+                            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
+                            title="Edit User"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        )}
 
                         {/* Send Message */}
-                        <button
-                          onClick={() => {
-                            setMessagingUser(u);
-                            setAdminMessage(u.adminMessage || "");
-                          }}
-                          className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
-                          title="Send Message"
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                        </button>
+                        {!(userRole === "admin" && u.role === "owner") && (
+                          <button
+                            onClick={() => {
+                              setMessagingUser(u);
+                              setAdminMessage(u.adminMessage || "");
+                            }}
+                            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
+                            title="Send Message"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </button>
+                        )}
 
                         {/* Suspend / Unsuspend */}
-                        {u.uid !== appUser?.uid && (
+                        {u.uid !== appUser?.uid && !(userRole === "admin" && u.role === "owner") && (
                           u.status === "suspended" ? (
                             <button
                               onClick={() => {
@@ -599,28 +603,32 @@ export default function AdminUsersPage() {
                       <button onClick={() => handleStatusChange(u.uid, "approved")} disabled={!!actionUid} className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline">Approve</button>
                     )}
 
-                    <button
-                      onClick={() => {
-                        setEditingUser(u);
-                        setEditDisplayName(u.displayName || "");
-                        setEditRole(u.role);
-                      }}
-                      className="text-xs font-medium text-gray-600 dark:text-gray-400 hover:underline"
-                    >
-                      Edit
-                    </button>
+                    {!(userRole === "admin" && u.role === "owner") && (
+                      <button
+                        onClick={() => {
+                          setEditingUser(u);
+                          setEditDisplayName(u.displayName || "");
+                          setEditRole(u.role);
+                        }}
+                        className="text-xs font-medium text-gray-600 dark:text-gray-400 hover:underline"
+                      >
+                        Edit
+                      </button>
+                    )}
 
-                    <button
-                      onClick={() => {
-                        setMessagingUser(u);
-                        setAdminMessage(u.adminMessage || "");
-                      }}
-                      className="text-xs font-medium text-gray-600 dark:text-gray-400 hover:underline"
-                    >
-                      Message
-                    </button>
+                    {!(userRole === "admin" && u.role === "owner") && (
+                      <button
+                        onClick={() => {
+                          setMessagingUser(u);
+                          setAdminMessage(u.adminMessage || "");
+                        }}
+                        className="text-xs font-medium text-gray-600 dark:text-gray-400 hover:underline"
+                      >
+                        Message
+                      </button>
+                    )}
 
-                    {u.uid !== appUser?.uid && (
+                    {u.uid !== appUser?.uid && !(userRole === "admin" && u.role === "owner") && (
                       u.status === "suspended" ? (
                         <button onClick={() => setSuspendingUser(u)} className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline">Unsuspend</button>
                       ) : (
