@@ -551,7 +551,7 @@ export default function AdminUsersPage() {
                         )}
 
                         {/* Delete User */}
-                        {u.uid !== appUser?.uid && (
+                        {u.uid !== appUser?.uid && !(userRole === "admin" && u.role === "owner") && (
                           <button
                             onClick={() => {
                               setDeletingUser(u);
@@ -628,7 +628,7 @@ export default function AdminUsersPage() {
                       )
                     )}
 
-                    {u.uid !== appUser?.uid && (
+                    {u.uid !== appUser?.uid && !(userRole === "admin" && u.role === "owner") && (
                       <button onClick={() => setDeletingUser(u)} className="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">Delete</button>
                     )}
                   </div>

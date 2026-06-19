@@ -56,6 +56,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "You cannot delete your own account." }, { status: 400 });
     }
 
+    // Verify target user's role to prevent admin deleting owner
+    const targetDoc = await adminDb.collection("users").doc(uid).get();
+    if (targetDoc.exists) {
+      const targetRole = targetDoc.data()?.role;
+      if (targetRole === "owner" && callerRole !== "owner") {
+        return NextResponse.json({ error: "Access denied. Admins cannot delete the owner." }, { status: 403 });
+      }
+    }
+
     // 6. Delete user from Firebase Auth
     try {
       await adminAuth.deleteUser(uid);
