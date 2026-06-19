@@ -3,14 +3,14 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { getAllCustomers, getAllSales, addSale } from "@/lib/firestore";
-import { Customer, Sale, SaleFormData, SaleItems } from "@/types";
+import { getAllCustomers, getAllSales, addSale, addCustomer } from "@/lib/firestore";
+import { Customer, Sale, SaleFormData, SaleItems, CustomerFormData } from "@/types";
 import { PRODUCTS, calculateTotals, getEmptySaleItems } from "@/utils/pricing";
 import { formatCurrency, formatDate, toDate } from "@/utils/formatters";
 import { PageSpinner } from "@/components/ui/Spinner";
 import Spinner from "@/components/ui/Spinner";
-import { ConfirmModal } from "@/components/ui/Modal";
-import { ArrowLeft, ShoppingCart, Minus, Plus, UserPlus } from "lucide-react";
+import Modal, { ConfirmModal } from "@/components/ui/Modal";
+import { ArrowLeft, ShoppingCart, Minus, Plus, UserPlus, Lock } from "lucide-react";
 import Link from "next/link";
 import { canDo } from "@/lib/rbac";
 
@@ -37,10 +37,62 @@ export default function NewSalePage() {
   const [customerSearch, setCustomerSearch] = useState(searchParams.get("customerName") || "");
   const [showDropdown, setShowDropdown] = useState(false);
 
+  const canAddCust = canDo(appUser, "canAddCustomers");
+
   // Duplicate-day confirmation
   const [showDupConfirm, setShowDupConfirm] = useState(false);
   const [dupSale, setDupSale] = useState<Sale | null>(null);
   const [pendingData, setPendingData] = useState<SaleFormData | null>(null);
+
+  // Inline Customer Creation
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [newCustName, setNewCustName] = useState("");
+  const [newCustPhone, setNewCustPhone] = useState("");
+  const [newCustLocation, setNewCustLocation] = useState("");
+  const [newCustNotes, setNewCustNotes] = useState("");
+  const [newCustLoading, setNewCustLoading] = useState(false);
+
+  async function handleAddCustomerSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newCustName.trim()) {
+      addToast("warning", "Customer name is required");
+      return;
+    }
+    setNewCustLoading(true);
+    try {
+      const newId = await addCustomer({
+        fullName: newCustName.trim(),
+        phone: newCustPhone.trim(),
+        location: newCustLocation.trim(),
+        notes: newCustNotes.trim(),
+      }, user!.uid);
+
+      const newCustObj: Customer = {
+        id: newId,
+        fullName: newCustName.trim(),
+        phone: newCustPhone.trim(),
+        location: newCustLocation.trim(),
+        notes: newCustNotes.trim(),
+        createdAt: new Date(),
+        createdBy: user!.uid,
+      };
+
+      setCustomers(prev => [newCustObj, ...prev]);
+      setSelectedCustomerId(newId);
+      setCustomerSearch(newCustName.trim());
+      addToast("success", "Customer added inline successfully!");
+      setShowAddCustomerModal(false);
+      // Reset form
+      setNewCustName("");
+      setNewCustPhone("");
+      setNewCustLocation("");
+      setNewCustNotes("");
+    } catch (err) {
+      addToast("error", "Failed to add customer inline");
+    } finally {
+      setNewCustLoading(false);
+    }
+  }
 
   useEffect(() => {
     Promise.all([getAllCustomers(), getAllSales()])
@@ -164,9 +216,22 @@ export default function NewSalePage() {
                     </button>
                   ))}
                 {customers.filter(c => c.fullName.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone?.includes(customerSearch)).length === 0 && (
-                  <Link href="/customers" className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-emerald-600 rounded-lg hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30">
-                    <UserPlus className="h-4 w-4" /> Customer not found. Click to add.
-                  </Link>
+                  canAddCust ? (
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setShowAddCustomerModal(true);
+                      }}
+                      className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-emerald-600 rounded-lg hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 transition-colors"
+                    >
+                      <UserPlus className="h-4 w-4" /> Customer not found. Click to add inline.
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-gray-400 rounded-lg dark:text-gray-500">
+                      <Lock className="h-4 w-4" /> Customer not found. Contact admin to add.
+                    </div>
+                  )
                 )}
               </div>
             )}
@@ -278,6 +343,69 @@ export default function NewSalePage() {
         confirmVariant="primary"
         loading={saving}
       />
+
+      {/* ── Add Customer Modal ── */}
+      <Modal isOpen={showAddCustomerModal} onClose={() => setShowAddCustomerModal(false)} title="Add Customer Inline">
+        <form onSubmit={handleAddCustomerSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Full Name *</label>
+            <input
+              type="text"
+              value={newCustName}
+              onChange={e => setNewCustName(e.target.value)}
+              placeholder="Enter name"
+              className="w-full rounded-xl border border-gray-300 bg-gray-50 py-2.5 px-4 text-sm text-gray-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone</label>
+            <input
+              type="tel"
+              value={newCustPhone}
+              onChange={e => setNewCustPhone(e.target.value)}
+              placeholder="0712345678"
+              className="w-full rounded-xl border border-gray-300 bg-gray-50 py-2.5 px-4 text-sm text-gray-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Location</label>
+            <input
+              type="text"
+              value={newCustLocation}
+              onChange={e => setNewCustLocation(e.target.value)}
+              placeholder="e.g. Nairobi"
+              className="w-full rounded-xl border border-gray-300 bg-gray-50 py-2.5 px-4 text-sm text-gray-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Notes</label>
+            <textarea
+              value={newCustNotes}
+              onChange={e => setNewCustNotes(e.target.value)}
+              placeholder="Additional notes..."
+              rows={3}
+              className="w-full rounded-xl border border-gray-300 bg-gray-50 py-2.5 px-4 text-sm text-gray-900 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all resize-none"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowAddCustomerModal(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={newCustLoading}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-all"
+            >
+              {newCustLoading ? <Spinner size="sm" /> : "Add Customer"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

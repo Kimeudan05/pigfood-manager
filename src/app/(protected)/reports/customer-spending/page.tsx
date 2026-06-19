@@ -8,6 +8,9 @@
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { canDo } from "@/lib/rbac";
 import { getAllCustomers, getAllSales } from "@/lib/firestore";
 import { Customer, Sale } from "@/types";
 import { formatDate, formatCurrency, toDate } from "@/utils/formatters";
@@ -43,6 +46,11 @@ const PER_PAGE = 10;
 
 export default function CustomerSpendingPage() {
   const { addToast } = useToast();
+  const { appUser } = useAuth();
+  const router = useRouter();
+  
+  const canViewReports = canDo(appUser, "canViewReports");
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +71,12 @@ export default function CustomerSpendingPage() {
   const [showPhones, setShowPhones] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    if (!appUser) return;
+    if (!canViewReports) {
+      router.replace("/dashboard");
+      return;
+    }
+
     async function loadData() {
       try {
         const [c, s] = await Promise.all([getAllCustomers(), getAllSales()]);
@@ -76,7 +90,7 @@ export default function CustomerSpendingPage() {
       }
     }
     loadData();
-  }, [addToast]);
+  }, [appUser, canViewReports, router, addToast]);
 
   // Dynamic spending calculations per customer based on active date range
   const customerSpending = useMemo(() => {
@@ -258,6 +272,7 @@ export default function CustomerSpendingPage() {
   }
 
   if (loading) return <PageSpinner />;
+  if (!canViewReports) return null;
 
   return (
     <div className="space-y-6 animate-fade-in">

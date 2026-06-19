@@ -53,6 +53,7 @@ import {
   User,
   Leaf,
   EyeOff,
+  TrendingUp,
 } from "lucide-react";
 import { formatDate } from "@/utils/formatters";
 
@@ -823,6 +824,11 @@ export default function AdminUsersPage() {
                         { label: "New Sale", icon: PlusCircle, show: (() => {
                             const roleDefault = GRANULAR_DEFAULTS[selectedUser.role]["canAddSale"];
                             return "canAddSale" in localPerms ? (localPerms["canAddSale"] ?? false) : roleDefault;
+                          })()
+                        },
+                        { label: "Customer Spending", icon: TrendingUp, show: (() => {
+                            const roleDefault = GRANULAR_DEFAULTS[selectedUser.role]["canViewReports"];
+                            return "canViewReports" in localPerms ? (localPerms["canViewReports"] ?? false) : roleDefault;
                           })()
                         },
                         { label: "Reports", icon: BarChart3, show: (() => {
