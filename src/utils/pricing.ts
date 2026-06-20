@@ -10,6 +10,7 @@ import { SaleItems, SaleTotals, ProductConfig } from "@/types";
 export const PRODUCTS: ProductConfig[] = [
   { key: "cookedFood", label: "Cooked Food",  price: 20, totalKey: "cookedFoodTotal" },
   { key: "bread",      label: "Bread",         price: 20, totalKey: "breadTotal"      },
+  { key: "bread25",    label: "Bread @ 25",    price: 25, totalKey: "bread25Total"    },
   { key: "meat25",     label: "Meat @ 25",     price: 25, totalKey: "meat25Total"     },
   { key: "meat30",     label: "Meat @ 30",     price: 30, totalKey: "meat30Total"     },
   { key: "bones",      label: "Bones @ 15",    price: 15, totalKey: "bonesTotal"      },
@@ -35,12 +36,19 @@ export const PRODUCT_GROUPS = [
     color: "#f59e0b",
     members: ["bones", "bones10"] as const,
   },
+  {
+    key: "bread",
+    label: "Bread",
+    color: "#ec4899",
+    members: ["bread", "bread25"] as const,
+  },
 ] as const;
 
 /** Calculate totals for each item and the grand total */
 export function calculateTotals(items: SaleItems): SaleTotals {
   const cookedFoodTotal = (items.cookedFood ?? 0) * 20;
   const breadTotal      = (items.bread      ?? 0) * 20;
+  const bread25Total    = (items.bread25    ?? 0) * 25;
   const meat25Total     = (items.meat25     ?? 0) * 25;
   const meat30Total     = (items.meat30     ?? 0) * 30;
   const bonesTotal      = (items.bones      ?? 0) * 15;
@@ -51,6 +59,7 @@ export function calculateTotals(items: SaleItems): SaleTotals {
   const grandTotal =
     cookedFoodTotal +
     breadTotal      +
+    bread25Total    +
     meat25Total     +
     meat30Total     +
     bonesTotal      +
@@ -61,6 +70,7 @@ export function calculateTotals(items: SaleItems): SaleTotals {
   return {
     cookedFoodTotal,
     breadTotal,
+    bread25Total,
     meat25Total,
     meat30Total,
     bonesTotal,
@@ -76,6 +86,7 @@ export function getEmptySaleItems(): SaleItems {
   return {
     cookedFood: 0,
     bread:      0,
+    bread25:    0,
     meat25:     0,
     meat30:     0,
     bones:      0,

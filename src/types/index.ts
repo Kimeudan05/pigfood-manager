@@ -68,6 +68,7 @@ export interface CustomerFormData {
 export interface SaleItems {
   cookedFood: number;
   bread: number;
+  bread25: number;
   meat25: number;
   meat30: number;
   bones: number;    // Bones @ 15 bob
@@ -79,6 +80,7 @@ export interface SaleItems {
 export interface SaleTotals {
   cookedFoodTotal: number;
   breadTotal: number;
+  bread25Total: number;
   meat25Total: number;
   meat30Total: number;
   bonesTotal: number;   // Bones @ 15

@@ -85,6 +85,7 @@ export async function addSale(data: SaleFormData, userId: string): Promise<strin
   const items: SaleItems = {
     cookedFood: data.cookedFood,
     bread:      data.bread,
+    bread25:    data.bread25 ?? 0,
     meat25:     data.meat25,
     meat30:     data.meat30,
     bones:      data.bones,
@@ -114,6 +115,7 @@ export async function updateSale(id: string, data: SaleFormData): Promise<void> 
   const items: SaleItems = {
     cookedFood: data.cookedFood,
     bread:      data.bread,
+    bread25:    data.bread25 ?? 0,
     meat25:     data.meat25,
     meat30:     data.meat30,
     bones:      data.bones,

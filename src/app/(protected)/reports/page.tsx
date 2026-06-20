@@ -35,7 +35,10 @@ const REPORT_GROUPS: Array<{
     key: "bread",
     label: "Bread",
     color: COLORS[1],
-    members: [{ productKey: "bread", label: "Bread", totalKey: "breadTotal", price: 20 }],
+    members: [
+      { productKey: "bread",   label: "Bread @ 20", totalKey: "breadTotal",   price: 20 },
+      { productKey: "bread25", label: "Bread @ 25", totalKey: "bread25Total", price: 25 },
+    ],
   },
   {
     key: "meat",
@@ -168,7 +171,7 @@ export default function ReportsPage() {
   const avgSale = filteredSales.length > 0 ? totalRevenue / filteredSales.length : 0;
   const totalUnits = filteredSales.reduce((sum, s) =>
     sum +
-    (s.cookedFood || 0) + (s.bread  || 0) +
+    (s.cookedFood || 0) + (s.bread  || 0) + (s.bread25 || 0) +
     (s.meat25     || 0) + (s.meat30 || 0) +
     (s.bones      || 0) + (s.bones10 || 0) +
     (s.gradeA     || 0) + (s.veggies || 0),
