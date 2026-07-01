@@ -115,7 +115,7 @@ export default function CustomerDetailPage() {
               </tr></thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700/30">
                 {sales.map(s => {
-                  const items = [s.cookedFood && `Food:${s.cookedFood}`, s.bread && `Bread:${s.bread}`, s.meat25 && `M25:${s.meat25}`, s.meat30 && `M30:${s.meat30}`, s.bones && `Bones:${s.bones}`, s.gradeA && `GA:${s.gradeA}`, s.veggies && `Veg:${s.veggies}`].filter(Boolean).join(", ");
+                  const items = [s.cookedFood && `Food:${s.cookedFood}`, s.bread && `Bread:${s.bread}`, s.bread25 && `Bread25:${s.bread25}`, s.meat25 && `M25:${s.meat25}`, s.meat30 && `M30:${s.meat30}`, s.bones && `Bones:${s.bones}`, s.bones10 && `Bones10:${s.bones10}`, s.gradeA && `GA:${s.gradeA}`, s.veggies && `Veg:${s.veggies}`].filter(Boolean).join(", ");
                   return (
                     <tr key={s.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20">
                       <td className="px-5 py-3 font-mono text-xs text-gray-600 dark:text-gray-300">{s.saleNumber}</td>

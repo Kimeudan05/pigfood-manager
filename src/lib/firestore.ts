@@ -127,12 +127,18 @@ export async function updateSale(id: string, data: SaleFormData): Promise<void> 
   const totals: SaleTotals = calculateTotals(items);
   const docRef = doc(db, "sales", id);
 
-  await updateDoc(docRef, {
+  const updateData: any = {
     customerId: data.customerId,
     customerName: data.customerName,
     ...items,
     ...totals,
-  });
+  };
+
+  if (data.saleDate) {
+    updateData.createdAt = Timestamp.fromDate(new Date(data.saleDate));
+  }
+
+  await updateDoc(docRef, updateData);
 }
 
 /** Delete a sale */

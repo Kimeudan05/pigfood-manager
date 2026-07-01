@@ -86,9 +86,11 @@ export default function SalesPage() {
     const items = [
       { label: "Cooked Food", qty: sale.cookedFood, total: sale.cookedFoodTotal, price: 20 },
       { label: "Bread", qty: sale.bread, total: sale.breadTotal, price: 20 },
+      { label: "Bread @25", qty: sale.bread25, total: sale.bread25Total, price: 25 },
       { label: "Meat @25", qty: sale.meat25, total: sale.meat25Total, price: 25 },
       { label: "Meat @30", qty: sale.meat30, total: sale.meat30Total, price: 30 },
       { label: "Bones", qty: sale.bones, total: sale.bonesTotal, price: 15 },
+      { label: "Bones @10", qty: sale.bones10, total: sale.bones10Total, price: 10 },
       { label: "Grade A", qty: sale.gradeA, total: sale.gradeATotal, price: 5 },
       { label: "Veggies", qty: sale.veggies, total: sale.veggiesTotal, price: 6 },
     ].filter(i => i.qty > 0);

@@ -24,6 +24,11 @@ export default function EditSalePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showLegacyPricing, setShowLegacyPricing] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [saleDate, setSaleDate] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+
   const [items, setItems] = useState<SaleItems>({
     cookedFood: 0, bread: 0, bread25: 0, meat25: 0, meat30: 0, bones: 0, bones10: 0, gradeA: 0, veggies: 0,
   });
@@ -34,6 +39,16 @@ export default function EditSalePage() {
         if (!s) { addToast("error", "Sale not found"); router.push("/sales"); return; }
         setSale(s);
         setCustomers(c);
+        setSelectedCustomerId(s.customerId);
+        setCustomerSearch(s.customerName);
+        if (s.createdAt) {
+          const dateObj = toDate(s.createdAt);
+          if (dateObj) {
+            const tzOffset = dateObj.getTimezoneOffset() * 60000;
+            const localISOTime = (new Date(dateObj.getTime() - tzOffset)).toISOString().split("T")[0];
+            setSaleDate(localISOTime);
+          }
+        }
         setItems({
           cookedFood: s.cookedFood,
           bread:      s.bread,
@@ -64,11 +79,15 @@ export default function EditSalePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!sale) return;
+    if (!selectedCustomerId) { addToast("warning", "Please select a customer"); return; }
     if (totals.grandTotal === 0) { addToast("warning", "Add at least one item"); return; }
 
+    const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+
     const data: SaleFormData = {
-      customerId: sale.customerId,
-      customerName: sale.customerName,
+      customerId: selectedCustomerId,
+      customerName: selectedCustomer?.fullName || sale.customerName,
+      saleDate,
       ...items,
     };
 
@@ -101,19 +120,56 @@ export default function EditSalePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Sale Info (read-only) */}
+        {/* Sale Info (editable) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700/50 dark:bg-gray-800/50">
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">Customer</label>
-            <p className="rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
-              {sale.customerName}
-            </p>
+          <div className="relative">
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">Customer *</label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 flex items-center justify-center opacity-60">
+                <img src="/pig-icon.png" alt="Search" className="h-full w-full object-contain" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search customer..."
+                value={customerSearch}
+                onChange={e => { setCustomerSearch(e.target.value); setShowDropdown(true); setSelectedCustomerId(""); }}
+                onFocus={() => setShowDropdown(true)}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all"
+              />
+            </div>
+
+            {showDropdown && (
+              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                {customers
+                  .filter(c => c.fullName.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone?.includes(customerSearch))
+                  .map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => { setSelectedCustomerId(c.id); setCustomerSearch(c.fullName); setShowDropdown(false); }}
+                      className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${selectedCustomerId === c.id ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-medium" : "text-gray-700 dark:text-gray-300"}`}
+                    >
+                      {c.fullName} {c.location ? `(${c.location})` : ""}
+                    </button>
+                  ))}
+                {customers.filter(c => c.fullName.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone?.includes(customerSearch)).length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                    No customers found.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">Sale Date</label>
-            <p className="rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
-              {formatDate(sale.createdAt)}
-            </p>
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">Sale Date</label>
+            <input
+              type="date"
+              value={saleDate}
+              onChange={e => setSaleDate(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 px-4 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white transition-all"
+              required
+            />
           </div>
         </div>
 
