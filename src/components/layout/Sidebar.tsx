@@ -19,6 +19,8 @@ import {
   User,
   ShieldCheck,
   TrendingUp,
+  Truck,
+  Activity,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -39,7 +41,9 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
     { href: "/customers",  label: "Customers",  icon: Users,           show: canDo(appUser, "canViewCustomers") },
     { href: "/sales",      label: "Sales",      icon: ShoppingCart,    show: canDo(appUser, "canViewSales") },
     { href: "/sales/new",  label: "New Sale",   icon: PlusCircle,      show: canDo(appUser, "canAddSale") },
+    { href: "/receivals",  label: "Receivals",  icon: Truck,           show: canDo(appUser, "canViewSales") || canDo(appUser, "canViewReports") },
     { href: "/reports/customer-spending", label: "Customer Spending", icon: TrendingUp, show: canDo(appUser, "canViewReports") },
+    { href: "/reports/advanced", label: "Advanced Analysis", icon: Activity, show: canDo(appUser, "canViewReports") },
     { href: "/reports",    label: "Reports",    icon: BarChart3,       show: canDo(appUser, "canViewReports") },
     { href: "/profile",    label: "Profile",    icon: User,            show: true },
   ];

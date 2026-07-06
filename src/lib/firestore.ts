@@ -17,6 +17,7 @@ import {
   limit,
   serverTimestamp,
   Timestamp,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { Customer, CustomerFormData, Sale, SaleFormData, SaleItems, SaleTotals } from "@/types";
@@ -246,5 +247,83 @@ export async function updateUserDoc(
 export async function deleteUserDoc(uid: string): Promise<void> {
   const ref = doc(db, "users", uid);
   await import("firebase/firestore").then(({ deleteDoc }) => deleteDoc(ref));
+}
+
+// ---------- Receival Operations ----------
+
+const receivalsRef = collection(db, "receivals");
+
+/** Add a new receival */
+export async function addReceival(data: import("@/types").ReceivalFormData, userId: string): Promise<string> {
+  const docRef = await addDoc(receivalsRef, {
+    ...data,
+    createdBy: userId,
+    createdAt: data.date ? Timestamp.fromDate(new Date(data.date)) : serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+/** Update an existing receival */
+export async function updateReceival(id: string, data: Partial<import("@/types").ReceivalFormData>): Promise<void> {
+  const docRef = doc(db, "receivals", id);
+  const updateData: any = { ...data };
+  if (data.date) {
+    updateData.createdAt = Timestamp.fromDate(new Date(data.date));
+  }
+  await updateDoc(docRef, updateData);
+}
+
+/** Delete a receival */
+export async function deleteReceival(id: string): Promise<void> {
+  const docRef = doc(db, "receivals", id);
+  await deleteDoc(docRef);
+}
+
+/** Get a single receival by ID */
+export async function getReceival(id: string): Promise<import("@/types").Receival | null> {
+  const docRef = doc(db, "receivals", id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as import("@/types").Receival;
+}
+
+/** Get all receivals */
+export async function getAllReceivals(): Promise<import("@/types").Receival[]> {
+  const q = query(receivalsRef, orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as import("@/types").Receival));
+}
+
+/** Get receivals within a date range */
+export async function getReceivalsByDateRange(start: Date, end: Date): Promise<import("@/types").Receival[]> {
+  const q = query(
+    receivalsRef,
+    where("createdAt", ">=", Timestamp.fromDate(start)),
+    where("createdAt", "<=", Timestamp.fromDate(end)),
+    orderBy("createdAt", "desc")
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as import("@/types").Receival));
+}
+
+// ---------- Reports & Notes ----------
+
+const weeklyNotesRef = collection(db, "weeklyNotes");
+
+/** Save or update a note for a specific week */
+export async function saveWeeklyNote(weekKey: string, note: string, userId: string): Promise<void> {
+  const docRef = doc(db, "weeklyNotes", weekKey);
+  await setDoc(docRef, {
+    note,
+    createdBy: userId,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Get all weekly notes */
+export async function getWeeklyNotes(): Promise<import("@/types").WeeklyNote[]> {
+  const q = query(weeklyNotesRef);
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as import("@/types").WeeklyNote));
 }
 

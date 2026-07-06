@@ -150,3 +150,45 @@ export interface ProductConfig {
   price: number;
   totalKey: keyof SaleTotals;
 }
+
+// ---------- Receivals ----------
+export type ReceivalSource = 'Pigfood Truck' | 'Normal Truck' | 'Conveyor (Local)';
+
+export interface ReceivalFractions {
+  cookedFood: number;
+  bread: number;
+  meat: number;
+  bones: number;
+  veggies: number;
+}
+
+export interface Receival extends ReceivalFractions {
+  id: string;
+  date: Timestamp | Date;
+  source: ReceivalSource;
+  truckNumber?: string;
+  weightIn?: number;
+  weightOut?: number;
+  netWeight: number;
+  notes?: string;
+  createdBy: string;
+  createdAt: Timestamp | Date;
+}
+
+export interface ReceivalFormData extends ReceivalFractions {
+  date: string;
+  source: ReceivalSource;
+  truckNumber?: string;
+  weightIn?: number;
+  weightOut?: number;
+  netWeight: number;
+  notes?: string;
+}
+
+// ---------- Reports & Notes ----------
+export interface WeeklyNote {
+  id: string; // The weekKey, e.g. "Jul 01"
+  note: string;
+  createdBy: string;
+  updatedAt: Timestamp | Date;
+}
