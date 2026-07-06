@@ -11,7 +11,13 @@ import { PageSpinner } from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import { BarChart3, Download, Calendar, TrendingUp, Package, DollarSign, ChevronDown, ChevronRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from "recharts";
-import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
+import { format, startOfDay, endOfDay, isWithinInterval, startOfWeek } from "date-fns";
+
+// Helper to get Week Key
+const getWeekKey = (date: Date) => {
+  const start = startOfWeek(date, { weekStartsOn: 1 });
+  return format(start, "MMM dd");
+};
 
 // ─── Colour palette ──────────────────────────────────────────────────────────
 const COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"];
@@ -78,14 +84,30 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [filterMode, setFilterMode] = useState<"range" | "single">("range");
+  const [filterMode, setFilterMode] = useState<"range" | "single" | "week">("range");
   const [singleDate, setSingleDate] = useState("");
+  const [selectedWeeks, setSelectedWeeks] = useState<string[]>([]);
   // Tracks which multi-member groups are expanded in the revenue table
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     getAllSales().then(setSales).catch(() => addToast("error", "Failed to load sales")).finally(() => setLoading(false));
   }, []);
+
+  const availableWeeks = useMemo(() => {
+    const weeksSet = new Set<string>();
+    sales.forEach(s => {
+      if (!s.createdAt) return;
+      const date = toDate(s.createdAt);
+      weeksSet.add(getWeekKey(date));
+    });
+    const weeksList = Array.from(weeksSet).map(wKey => {
+      const sampleSale = sales.find(s => s.createdAt && getWeekKey(toDate(s.createdAt)) === wKey);
+      const timestamp = sampleSale ? startOfWeek(toDate(sampleSale.createdAt), { weekStartsOn: 1 }).getTime() : 0;
+      return { label: `Week of ${wKey}`, value: wKey, timestamp };
+    });
+    return weeksList.sort((a, b) => b.timestamp - a.timestamp);
+  }, [sales]);
 
   const filteredSales = useMemo(() => {
     if (filterMode === "single") {
@@ -99,6 +121,15 @@ export default function ReportsPage() {
       });
     }
 
+    if (filterMode === "week") {
+      if (selectedWeeks.length === 0) return sales;
+      return sales.filter(s => {
+        if (!s.createdAt) return false;
+        const wKey = getWeekKey(toDate(s.createdAt));
+        return selectedWeeks.includes(wKey);
+      });
+    }
+
     if (!startDate && !endDate) return sales;
     return sales.filter(s => {
       if (!s.createdAt) return false;
@@ -107,7 +138,7 @@ export default function ReportsPage() {
       const end = endDate ? endOfDay(new Date(endDate)) : new Date(9999, 11, 31);
       return isWithinInterval(d, { start, end });
     });
-  }, [sales, filterMode, startDate, endDate, singleDate]);
+  }, [sales, filterMode, startDate, endDate, singleDate, selectedWeeks]);
 
   // ── Daily breakdown ───────────────────────────────────────────────────────
   const dailyData = useMemo(() => {
@@ -192,6 +223,13 @@ export default function ReportsPage() {
     setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
   }
 
+  // --- Multiselect Component ---
+  const [weekDropdownOpen, setWeekDropdownOpen] = useState(false);
+  const toggleWeek = (val: string) => {
+    if (selectedWeeks.includes(val)) setSelectedWeeks(selectedWeeks.filter(v => v !== val));
+    else setSelectedWeeks([...selectedWeeks, val]);
+  };
+
   if (loading) return <PageSpinner />;
 
   return (
@@ -227,6 +265,13 @@ export default function ReportsPage() {
                     ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
                     : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                 }`}>Single Day</button>
+              <button type="button"
+                onClick={() => { setFilterMode("week"); setStartDate(""); setEndDate(""); setSingleDate(""); setSelectedWeeks([]); }}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                  filterMode === "week"
+                    ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
+                    : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                }`}>By Week</button>
             </div>
           </div>
 
@@ -241,6 +286,37 @@ export default function ReportsPage() {
                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
                   className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
               </>
+            ) : filterMode === "week" ? (
+              <>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Weeks:</span>
+                <div className="relative">
+                  <div 
+                    onClick={() => setWeekDropdownOpen(!weekDropdownOpen)}
+                    className="min-w-[160px] cursor-pointer rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white flex items-center justify-between"
+                  >
+                    <span className="truncate max-w-[120px]">{selectedWeeks.length === 0 ? "All Weeks" : `${selectedWeeks.length} Selected`}</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </div>
+                  {weekDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setWeekDropdownOpen(false)} />
+                      <div className="absolute top-full left-0 mt-1 w-48 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl z-20 dark:border-gray-700 dark:bg-gray-800 p-2">
+                        {availableWeeks.map(opt => (
+                          <label key={opt.value} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={selectedWeeks.includes(opt.value)}
+                              onChange={() => toggleWeek(opt.value)}
+                              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span className="text-sm text-gray-700 dark:text-gray-300">{opt.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
             ) : (
               <>
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Specific Date:</span>
@@ -248,8 +324,8 @@ export default function ReportsPage() {
                   className="rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
               </>
             )}
-            {((filterMode === "range" && (startDate || endDate)) || (filterMode === "single" && singleDate)) && (
-              <button onClick={() => { setStartDate(""); setEndDate(""); setSingleDate(""); }}
+            {((filterMode === "range" && (startDate || endDate)) || (filterMode === "single" && singleDate) || (filterMode === "week" && selectedWeeks.length > 0)) && (
+              <button onClick={() => { setStartDate(""); setEndDate(""); setSingleDate(""); setSelectedWeeks([]); }}
                 className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors ml-auto sm:ml-0">
                 Clear Filter
               </button>

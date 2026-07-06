@@ -432,7 +432,7 @@ export default function AdvancedReportPage() {
                 <YAxis yAxisId="right" tickFormatter={(v) => `${v/1000}k`} tick={{fontSize: 12}} axisLine={false} tickLine={false} orientation="right" stroke="#7c3aed" />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: number, name: string) => name === "Revenue" ? formatCurrency(value) : `${value} kg`}
+                  formatter={(value: any, name: any) => name === "Revenue" ? formatCurrency(Number(value)) : `${value} kg`}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                 <Bar yAxisId="left" dataKey="salesKgs" name="Volume (kg)" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
@@ -463,7 +463,7 @@ export default function AdvancedReportPage() {
                 <YAxis tickFormatter={(v) => `${v/1000}k`} tick={{fontSize: 12}} axisLine={false} tickLine={false} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: number) => `${value.toLocaleString()} kg`}
+                  formatter={(value: any) => `${Number(value).toLocaleString()} kg`}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                 <Area type="monotone" dataKey="receivalsKgs" name="Receivals (Inflow)" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorRec)" />
@@ -484,7 +484,7 @@ export default function AdvancedReportPage() {
                 <YAxis tickFormatter={(v) => `${v/1000}k`} tick={{fontSize: 12}} axisLine={false} tickLine={false} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: number) => `${value.toLocaleString()} kg`}
+                  formatter={(value: any) => `${Number(value).toLocaleString()} kg`}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                 <Bar dataKey="pigfoodTruckKgs" name="Pigfood Truck (Onsite)" stackId="a" fill="#34d399" maxBarSize={50} radius={[0, 0, 0, 0]} />
