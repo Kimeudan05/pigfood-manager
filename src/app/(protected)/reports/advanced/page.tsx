@@ -302,7 +302,7 @@ export default function AdvancedReportPage() {
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <Info className="h-5 w-5 text-blue-500" />
-          This Week's Insights
+          Last Week's Insights
         </h2>
         {insights.length === 0 ? (
           <p className="text-sm text-gray-500">Not enough data for insights yet.</p>
@@ -334,14 +334,38 @@ export default function AdvancedReportPage() {
                     }`}>
                       {insight.title}
                     </h3>
-                    <p className={`text-xs mt-1 leading-relaxed ${
-                      insight.type === "negative" ? "text-red-700 dark:text-red-300" :
-                      insight.type === "warning" ? "text-amber-700 dark:text-amber-300" :
-                      insight.type === "positive" ? "text-emerald-700 dark:text-emerald-300" :
-                      "text-blue-700 dark:text-blue-300"
-                    }`}>
-                      {insight.description}
-                    </p>
+                    {insight.description && (
+                      <p className={`text-xs mt-1 leading-relaxed ${
+                        insight.type === "negative" ? "text-red-700 dark:text-red-300" :
+                        insight.type === "warning" ? "text-amber-700 dark:text-amber-300" :
+                        insight.type === "positive" ? "text-emerald-700 dark:text-emerald-300" :
+                        "text-blue-700 dark:text-blue-300"
+                      }`}>
+                        {insight.description}
+                      </p>
+                    )}
+                    {insight.list && (
+                      <ul className={`mt-2 space-y-1 text-xs list-disc pl-4 ${
+                        insight.type === "negative" ? "text-red-700 dark:text-red-300" :
+                        insight.type === "warning" ? "text-amber-700 dark:text-amber-300" :
+                        insight.type === "positive" ? "text-emerald-700 dark:text-emerald-300" :
+                        "text-blue-700 dark:text-blue-300"
+                      }`}>
+                        {insight.list.map((item: string, i: number) => (
+                          <li key={i}>{item}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {insight.footer && (
+                      <p className={`text-xs mt-2 font-semibold ${
+                        insight.type === "negative" ? "text-red-800 dark:text-red-200" :
+                        insight.type === "warning" ? "text-amber-800 dark:text-amber-200" :
+                        insight.type === "positive" ? "text-emerald-800 dark:text-emerald-200" :
+                        "text-blue-800 dark:text-blue-200"
+                      }`}>
+                        {insight.footer}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

@@ -210,6 +210,13 @@ export interface WeeklyAgg {
     bones: number;
     veggies: number;
   };
+  salesRevenueFractions: {
+    cookedFood: number;
+    bread: number;
+    meat: number;
+    bones: number;
+    veggies: number;
+  };
   receivalFractions: {
     cookedFood: number;
     bread: number;

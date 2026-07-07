@@ -75,7 +75,7 @@ export default function DashboardPage() {
     const todayRevenue = todaySalesArr.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
     const weekRevenue = weekSalesArr.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
     const monthRevenue = monthSalesArr.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
-    const averageSale = sales.length > 0 ? totalRevenue / sales.length : 0;
+    const averageSale = sales.length > 0 ? Math.round(totalRevenue / sales.length) : 0;
 
     return {
       totalCustomers: customers.length,
