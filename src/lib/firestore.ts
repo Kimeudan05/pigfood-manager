@@ -327,3 +327,8 @@ export async function getWeeklyNotes(): Promise<import("@/types").WeeklyNote[]> 
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as import("@/types").WeeklyNote));
 }
 
+/** Delete a weekly note */
+export async function deleteWeeklyNote(weekKey: string): Promise<void> {
+  await deleteDoc(doc(db, "weeklyNotes", weekKey));
+}
+

@@ -1,14 +1,15 @@
 "use client";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { canDo } from "@/lib/rbac";
-import { getAllSales, getAllReceivals, getWeeklyNotes, saveWeeklyNote } from "@/lib/firestore";
+import { getAllSales, getAllReceivals, getWeeklyNotes, saveWeeklyNote, deleteWeeklyNote } from "@/lib/firestore";
 import { Sale, Receival, WeeklyNote } from "@/types";
-import { formatCurrency, toDate } from "@/utils/formatters";
+import { formatCurrency } from "@/utils/formatters";
 import { PageSpinner } from "@/components/ui/Spinner";
 import { useToast } from "@/contexts/ToastContext";
+import { useAdvancedReports } from "@/hooks/useAdvancedReports";
 import {
   ArrowLeft,
   Activity,
@@ -16,10 +17,12 @@ import {
   TrendingUp,
   AlertTriangle,
   Info,
-  Calendar,
   Filter,
   FileText,
-  Save
+  Save,
+  Plus,
+  Edit2,
+  Trash2
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -35,7 +38,97 @@ import {
   AreaChart,
   BarChart
 } from "recharts";
-import { startOfWeek, format, subWeeks } from "date-fns";
+
+function NoteFormModal({ 
+  isOpen, 
+  onClose, 
+  initialWeek, 
+  initialText, 
+  weeklyData, 
+  isEdit,
+  onSave 
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  initialWeek: string;
+  initialText: string;
+  weeklyData: any[];
+  isEdit: boolean;
+  onSave: (week: string, text: string) => Promise<void>;
+}) {
+  const [week, setWeek] = useState(initialWeek);
+  const [text, setText] = useState(initialText);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setWeek(initialWeek);
+      setText(initialText);
+    }
+  }, [isOpen, initialWeek, initialText]);
+
+  if (!isOpen) return null;
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(week, text);
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700 animate-slide-up">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+          {isEdit ? "Edit Explanation" : "Add Explanation"}
+        </h3>
+        
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Week</label>
+            <select
+              value={week}
+              onChange={(e) => setWeek(e.target.value)}
+              disabled={isEdit}
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-gray-900"
+            >
+              {weeklyData.map(w => (
+                <option key={w.weekKey} value={w.weekKey}>Week of {w.weekLabel} ({w.weekKey})</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Explanation</label>
+            <textarea
+              rows={4}
+              placeholder="Context for performance..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 mt-6">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !text.trim()}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" /> : <Save className="h-4 w-4" />}
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdvancedReportPage() {
   const { appUser } = useAuth();
@@ -48,14 +141,10 @@ export default function AdvancedReportPage() {
   const [weeklyNotes, setWeeklyNotes] = useState<WeeklyNote[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Notes state
-  const [selectedWeekKey, setSelectedWeekKey] = useState<string>("");
-  const [currentNote, setCurrentNote] = useState<string>("");
-  const [savingNote, setSavingNote] = useState(false);
-
   // Filters
   const [dateLimit, setDateLimit] = useState<number>(12); // Last 12 weeks
 
+  // Fetch data
   useEffect(() => {
     if (!appUser) return;
     if (!canViewReports) {
@@ -79,218 +168,70 @@ export default function AdvancedReportPage() {
     loadData();
   }, [appUser, canViewReports, router, addToast]);
 
-  // Group data by week
-  const weeklyData = useMemo(() => {
-    const weeksMap = new Map<string, any>();
+  // Hook for Aggregation and Insights
+  const { weeklyData, insights, kpis } = useAdvancedReports(sales, receivals, dateLimit);
 
-    // Helper to get Week Key (Monday as start of week)
-    const getWeekKey = (date: Date) => {
-      const start = startOfWeek(date, { weekStartsOn: 1 });
-      return format(start, "MMM dd");
-    };
+  // Notes Modal State
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [initialNoteWeek, setInitialNoteWeek] = useState("");
+  const [initialNoteText, setInitialNoteText] = useState("");
+  const [isEditingNote, setIsEditingNote] = useState(false);
 
-    // Initialize map with empty weeks for the last N weeks to ensure continuous X-axis
-    const now = new Date();
-    for (let i = dateLimit - 1; i >= 0; i--) {
-      const wDate = subWeeks(now, i);
-      const start = startOfWeek(wDate, { weekStartsOn: 1 });
-      const wKey = format(start, "MMM dd");
-      weeksMap.set(wKey, {
-        weekKey: wKey,
-        timestamp: start.getTime(),
-        salesRevenue: 0,
-        salesKgs: 0,
-        receivalsKgs: 0,
-        pigfoodTruckKgs: 0,
-        normalTruckKgs: 0,
-        conveyorKgs: 0,
-        // Fractions
-        salesFractions: { cookedFood: 0, bread: 0, meat: 0, bones: 0, veggies: 0 },
-        receivalFractions: { cookedFood: 0, bread: 0, meat: 0, bones: 0, veggies: 0 }
-      });
+  function handleOpenNoteForm(weekKey?: string, text?: string) {
+    if (weekKey) {
+      setIsEditingNote(true);
+      setInitialNoteWeek(weekKey);
+      setInitialNoteText(text || "");
+    } else {
+      setIsEditingNote(false);
+      // Default to the most recent week without a note
+      const unusedWeeks = weeklyData.filter(w => !weeklyNotes.some(n => n.id === w.weekKey));
+      setInitialNoteWeek(unusedWeeks.length > 0 ? unusedWeeks[unusedWeeks.length - 1].weekKey : weeklyData[weeklyData.length - 1]?.weekKey || "");
+      setInitialNoteText("");
     }
+    setIsNoteModalOpen(true);
+  }
 
-    // Process Sales
-    sales.forEach(s => {
-      if (!s.createdAt) return;
-      const date = toDate(s.createdAt);
-      const wKey = getWeekKey(date);
-      if (!weeksMap.has(wKey)) return; // skip if outside our range limit
-
-      const w = weeksMap.get(wKey);
-      w.salesRevenue += s.grandTotal;
-      // Estimate Sales KGs
-      // We assume items are sold in units that roughly translate to kgs or are kgs.
-      const totalKgs = s.cookedFood + s.bread + s.bread25 + s.meat25 + s.meat30 + s.bones + s.bones10 + s.gradeA + s.veggies;
-      w.salesKgs += totalKgs;
-
-      w.salesFractions.cookedFood += s.cookedFood;
-      w.salesFractions.bread += s.bread + s.bread25;
-      w.salesFractions.meat += s.meat25 + s.meat30;
-      w.salesFractions.bones += s.bones + s.bones10;
-      w.salesFractions.veggies += s.veggies + s.gradeA;
-    });
-
-    // Process Receivals
-    receivals.forEach(r => {
-      if (!r.createdAt) return;
-      const date = toDate(r.createdAt);
-      const wKey = getWeekKey(date);
-      if (!weeksMap.has(wKey)) return; // skip if outside limit
-
-      const w = weeksMap.get(wKey);
-      w.receivalsKgs += r.netWeight;
-
-      if (r.source === "Pigfood Truck") w.pigfoodTruckKgs += r.netWeight;
-      else if (r.source === "Normal Truck") w.normalTruckKgs += r.netWeight;
-      else if (r.source === "Conveyor (Local)") w.conveyorKgs += r.netWeight;
-
-      w.receivalFractions.cookedFood += r.cookedFood || 0;
-      w.receivalFractions.bread += r.bread || 0;
-      w.receivalFractions.meat += r.meat || 0;
-      w.receivalFractions.bones += r.bones || 0;
-      w.receivalFractions.veggies += r.veggies || 0;
-    });
-
-    return Array.from(weeksMap.values()).sort((a, b) => a.timestamp - b.timestamp);
-  }, [sales, receivals, dateLimit]);
-
-  useEffect(() => {
-    if (weeklyData.length > 0 && !selectedWeekKey) {
-      setSelectedWeekKey(weeklyData[weeklyData.length - 1].weekKey);
-    }
-  }, [weeklyData, selectedWeekKey]);
-
-  useEffect(() => {
-    if (selectedWeekKey) {
-      const noteObj = weeklyNotes.find(n => n.id === selectedWeekKey);
-      setCurrentNote(noteObj ? noteObj.note : "");
-    }
-  }, [selectedWeekKey, weeklyNotes]);
-
-  async function handleSaveNote() {
-    if (!appUser || !selectedWeekKey) return;
-    setSavingNote(true);
+  async function handleSaveNote(weekKey: string, text: string) {
+    if (!appUser || !weekKey) return;
     try {
-      await saveWeeklyNote(selectedWeekKey, currentNote, appUser.uid);
+      await saveWeeklyNote(weekKey, text, appUser.uid);
       setWeeklyNotes(prev => {
-        const existing = prev.find(n => n.id === selectedWeekKey);
+        const existing = prev.find(n => n.id === weekKey);
         if (existing) {
-          return prev.map(n => n.id === selectedWeekKey ? { ...n, note: currentNote } : n);
+          return prev.map(n => n.id === weekKey ? { ...n, note: text } : n);
         } else {
-          return [...prev, { id: selectedWeekKey, note: currentNote, createdBy: appUser.uid, updatedAt: new Date() } as any];
+          return [...prev, { id: weekKey, note: text, createdBy: appUser.uid, updatedAt: new Date() } as any];
         }
       });
       addToast("success", "Explanation saved successfully.");
+      setIsNoteModalOpen(false);
     } catch (err) {
       console.error(err);
       addToast("error", "Failed to save explanation.");
-    } finally {
-      setSavingNote(false);
     }
   }
 
-  // Generate Insights
-  const insights = useMemo(() => {
-    if (weeklyData.length < 2) return [];
-    
-    const current = weeklyData[weeklyData.length - 1];
-    const prev = weeklyData[weeklyData.length - 2];
-    const generated: any[] = [];
-
-    // 1. Overall Sales Drop Analysis
-    if (current.salesKgs < prev.salesKgs) {
-      const salesDropPct = ((prev.salesKgs - current.salesKgs) / prev.salesKgs) * 100;
-      const receivalsDiff = current.receivalsKgs - prev.receivalsKgs;
-      
-      let reason = "";
-      if (receivalsDiff < 0) {
-        reason = `Lower Receivals. Supply dropped by ${Math.abs(receivalsDiff).toLocaleString()} kg this week, directly causing the sales volume drop.`;
-      } else {
-        reason = `Reduced Customer Demand. Despite receivals increasing by ${receivalsDiff.toLocaleString()} kg, sales dropped. Customers are buying less.`;
-      }
-
-      generated.push({
-        type: "negative",
-        title: `Sales Volume Dropped by ${salesDropPct.toFixed(1)}%`,
-        description: reason
-      });
-    } else if (current.salesKgs > prev.salesKgs) {
-      const salesIncPct = ((current.salesKgs - prev.salesKgs) / prev.salesKgs) * 100;
-      generated.push({
-        type: "positive",
-        title: `Sales Volume Increased by ${salesIncPct.toFixed(1)}%`,
-        description: "Great performance this week in moving volume."
-      });
+  async function handleDeleteNote(weekKey: string) {
+    if (!window.confirm("Delete this explanation?")) return;
+    try {
+      await deleteWeeklyNote(weekKey);
+      setWeeklyNotes(prev => prev.filter(n => n.id !== weekKey));
+      addToast("success", "Explanation deleted.");
+    } catch {
+      addToast("error", "Failed to delete explanation.");
     }
+  }
 
-    // 2. Fraction Analysis
-    const fractions = ["meat", "bread", "cookedFood", "bones", "veggies"];
-    fractions.forEach(f => {
-      const cSale = current.salesFractions[f] || 0;
-      const pSale = prev.salesFractions[f] || 0;
-      
-      if (cSale < pSale && pSale > 0) {
-        const drop = pSale - cSale;
-        const cRec = current.receivalFractions[f] || 0;
-        const pRec = prev.receivalFractions[f] || 0;
-        
-        // Only report significant drops (e.g. > 10%)
-        if (drop / pSale > 0.1) {
-          if (cRec < pRec) {
-            generated.push({
-              type: "warning",
-              title: `${f.charAt(0).toUpperCase() + f.slice(1)} Sales Dropped`,
-              description: `Sales decreased because supply of ${f} dropped from ${pRec} to ${cRec} this week.`
-            });
-          } else {
-            generated.push({
-              type: "warning",
-              title: `${f.charAt(0).toUpperCase() + f.slice(1)} Demand Dropped`,
-              description: `Sales decreased despite stable supply. This indicates lower customer interest or pricing issues for ${f}.`
-            });
-          }
-        }
-      } else if (cSale > pSale * 1.2 && pSale > 0) {
-        // > 20% increase
-        generated.push({
-          type: "positive",
-          title: `${f.charAt(0).toUpperCase() + f.slice(1)} Sales Surging`,
-          description: `Sales increased significantly compared to last week.`
-        });
-      }
-    });
-
-    // 3. Source Quality / Receivals Comparison
-    const ptDiff = current.pigfoodTruckKgs - prev.pigfoodTruckKgs;
-    const ntDiff = current.normalTruckKgs - prev.normalTruckKgs;
-    
-    if (current.pigfoodTruckKgs > current.normalTruckKgs && current.pigfoodTruckKgs > 0) {
-      generated.push({
-        type: "info",
-        title: "Pigfood Truck leads Receivals",
-        description: `Pigfood trucks supplied the bulk of the volume (${current.pigfoodTruckKgs.toLocaleString()} kg) this week. Normal trucks brought in ${current.normalTruckKgs.toLocaleString()} kg.`
-      });
-    } else if (current.normalTruckKgs > current.pigfoodTruckKgs && current.normalTruckKgs > 0) {
-      generated.push({
-        type: "info",
-        title: "Normal Trucks overtook Pigfood Trucks",
-        description: `Normal trucks brought in more volume (${current.normalTruckKgs.toLocaleString()} kg) than Pigfood trucks (${current.pigfoodTruckKgs.toLocaleString()} kg). Ensure quality remains consistent.`
-      });
-    }
-
-    return generated;
-  }, [weeklyData]);
-
-  // Tooltip formatter for currency
-  const currencyFormatter = (value: number) => formatCurrency(value);
-  const kgFormatter = (value: number) => `${value.toLocaleString()} kg`;
+  // Filter notes to only show those relevant to the currently displayed weeks
+  const displayedWeeksKeys = new Set(weeklyData.map(w => w.weekKey));
+  const relevantNotes = weeklyNotes.filter(n => displayedWeeksKeys.has(n.id)).sort((a, b) => b.id.localeCompare(a.id));
 
   if (loading) return <PageSpinner />;
   if (!canViewReports) return null;
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
+    <div className="space-y-8 animate-fade-in pb-12 relative">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1">
@@ -323,6 +264,39 @@ export default function AdvancedReportPage() {
           </select>
         </div>
       </div>
+
+      {/* KPIs */}
+      {kpis && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700/50 dark:bg-gray-800/50">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Week of {kpis.current.weekLabel} Revenue</h3>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{formatCurrency(kpis.current.salesRevenue)}</p>
+            {kpis.prev.salesRevenue > 0 && (
+              <p className={`text-sm mt-1 font-medium ${kpis.current.salesRevenue > kpis.prev.salesRevenue ? "text-emerald-600" : "text-red-500"}`}>
+                {kpis.current.salesRevenue > kpis.prev.salesRevenue ? "↑" : "↓"} {Math.abs(((kpis.current.salesRevenue - kpis.prev.salesRevenue) / kpis.prev.salesRevenue) * 100).toFixed(1)}% vs prev week
+              </p>
+            )}
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700/50 dark:bg-gray-800/50">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Week of {kpis.current.weekLabel} Volume Sold</h3>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{kpis.current.salesKgs.toLocaleString()} kg</p>
+            {kpis.prev.salesKgs > 0 && (
+              <p className={`text-sm mt-1 font-medium ${kpis.current.salesKgs > kpis.prev.salesKgs ? "text-emerald-600" : "text-red-500"}`}>
+                {kpis.current.salesKgs > kpis.prev.salesKgs ? "↑" : "↓"} {Math.abs(((kpis.current.salesKgs - kpis.prev.salesKgs) / kpis.prev.salesKgs) * 100).toFixed(1)}% vs prev week
+              </p>
+            )}
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700/50 dark:bg-gray-800/50">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Week of {kpis.current.weekLabel} Receivals</h3>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{kpis.current.receivalsKgs.toLocaleString()} kg</p>
+            {kpis.prev.receivalsKgs > 0 && (
+              <p className={`text-sm mt-1 font-medium ${kpis.current.receivalsKgs > kpis.prev.receivalsKgs ? "text-emerald-600" : "text-red-500"}`}>
+                {kpis.current.receivalsKgs > kpis.prev.receivalsKgs ? "↑" : "↓"} {Math.abs(((kpis.current.receivalsKgs - kpis.prev.receivalsKgs) / kpis.prev.receivalsKgs) * 100).toFixed(1)}% vs prev week
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Automated Insights Section */}
       <div className="space-y-4">
@@ -376,50 +350,63 @@ export default function AdvancedReportPage() {
         )}
       </div>
 
-      {/* Manager's Notes Section */}
+      {/* Manager's Notes Section (CRUD) */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700/50 dark:bg-gray-800/50">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <FileText className="h-5 w-5 text-emerald-500" />
             Manager's Weekly Explanations
           </h2>
-          <select
-            value={selectedWeekKey}
-            onChange={(e) => setSelectedWeekKey(e.target.value)}
-            className="rounded-xl border border-gray-300 bg-gray-50 py-1.5 px-3 text-sm focus:border-emerald-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-          >
-            {weeklyData.map((w) => (
-              <option key={w.weekKey} value={w.weekKey}>Week of {w.weekKey}</option>
-            ))}
-          </select>
-        </div>
-        
-        <textarea
-          rows={3}
-          placeholder="Add context or explanations for this week's performance (e.g. public holidays, truck breakdowns, specific sales campaigns...)"
-          value={currentNote}
-          onChange={(e) => setCurrentNote(e.target.value)}
-          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white mb-3"
-        />
-        
-        <div className="flex justify-end">
           <button
-            onClick={handleSaveNote}
-            disabled={savingNote}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-600/25 hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handleOpenNoteForm()}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-600 hover:bg-emerald-100 transition-colors dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
           >
-            {savingNote ? (
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Save Explanation
+            <Plus className="h-4 w-4" /> Add Note
           </button>
         </div>
+        
+        {relevantNotes.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">No explanations saved for the selected period.</p>
+        ) : (
+          <div className="space-y-3">
+            {relevantNotes.map(n => {
+              const weekAgg = weeklyData.find(w => w.weekKey === n.id);
+              const label = weekAgg ? weekAgg.weekLabel : n.id;
+              
+              return (
+                <div key={n.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700/30 dark:bg-gray-800/30 flex justify-between gap-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">Week of {label}</h4>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{n.note}</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => handleOpenNoteForm(n.id, n.note)} className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleDeleteNote(n.id)} className="p-1.5 text-gray-400 hover:text-red-600 transition-colors">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
+      {/* Note Edit Modal / Inline Form */}
+      <NoteFormModal
+        isOpen={isNoteModalOpen}
+        onClose={() => setIsNoteModalOpen(false)}
+        initialWeek={initialNoteWeek}
+        initialText={initialNoteText}
+        weeklyData={weeklyData}
+        isEdit={isEditingNote}
+        onSave={handleSaveNote}
+      />
+
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
         {/* 1. Sales Trend (KGs & Revenue) */}
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700/50 dark:bg-gray-800/50">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Sales Trends (Volume vs Revenue)</h2>
@@ -427,9 +414,9 @@ export default function AdvancedReportPage() {
             <ResponsiveContainer width="100%" height="100%" minHeight={300}>
               <ComposedChart data={weeklyData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.2} />
-                <XAxis dataKey="weekKey" tick={{fontSize: 12}} tickMargin={10} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="left" tickFormatter={(v) => `${v/1000}k`} tick={{fontSize: 12}} axisLine={false} tickLine={false} orientation="left" stroke="#059669" />
-                <YAxis yAxisId="right" tickFormatter={(v) => `${v/1000}k`} tick={{fontSize: 12}} axisLine={false} tickLine={false} orientation="right" stroke="#7c3aed" />
+                <XAxis dataKey="weekLabel" height={30} tick={{fontSize: 12}} tickMargin={10} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="left" width={50} tickFormatter={(v) => `${v/1000}k`} tick={{fontSize: 12}} axisLine={false} tickLine={false} orientation="left" stroke="#059669" />
+                <YAxis yAxisId="right" width={50} tickFormatter={(v) => `${v/1000}k`} tick={{fontSize: 12}} axisLine={false} tickLine={false} orientation="right" stroke="#7c3aed" />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   formatter={(value: any, name: any) => name === "Revenue" ? formatCurrency(Number(value)) : `${value} kg`}
@@ -459,8 +446,8 @@ export default function AdvancedReportPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.2} />
-                <XAxis dataKey="weekKey" tick={{fontSize: 12}} tickMargin={10} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={(v) => `${v/1000}k`} tick={{fontSize: 12}} axisLine={false} tickLine={false} />
+                <XAxis dataKey="weekLabel" height={30} tick={{fontSize: 12}} tickMargin={10} axisLine={false} tickLine={false} />
+                <YAxis width={50} tickFormatter={(v) => `${v/1000}k`} tick={{fontSize: 12}} axisLine={false} tickLine={false} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   formatter={(value: any) => `${Number(value).toLocaleString()} kg`}
@@ -480,8 +467,8 @@ export default function AdvancedReportPage() {
             <ResponsiveContainer width="100%" height="100%" minHeight={300}>
               <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.2} />
-                <XAxis dataKey="weekKey" tick={{fontSize: 12}} tickMargin={10} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={(v) => `${v/1000}k`} tick={{fontSize: 12}} axisLine={false} tickLine={false} />
+                <XAxis dataKey="weekLabel" height={30} tick={{fontSize: 12}} tickMargin={10} axisLine={false} tickLine={false} />
+                <YAxis width={50} tickFormatter={(v) => `${v/1000}k`} tick={{fontSize: 12}} axisLine={false} tickLine={false} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   formatter={(value: any) => `${Number(value).toLocaleString()} kg`}
@@ -494,7 +481,6 @@ export default function AdvancedReportPage() {
             </ResponsiveContainer>
           </div>
         </div>
-
       </div>
     </div>
   );

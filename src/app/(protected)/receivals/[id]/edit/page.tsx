@@ -1,33 +1,29 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { canDo } from "@/lib/rbac";
-import { addReceival, getReceivalsByDateRange } from "@/lib/firestore";
+import { getReceival, updateReceival } from "@/lib/firestore";
 import { useToast } from "@/contexts/ToastContext";
 import { ArrowLeft, Save, Truck, Scale, FileText } from "lucide-react";
-import { ReceivalSource, Receival } from "@/types";
+import { ReceivalSource } from "@/types";
+import { PageSpinner } from "@/components/ui/Spinner";
 
-export default function NewReceivalPage() {
+export default function EditReceivalPage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
   const { appUser } = useAuth();
   const { addToast } = useToast();
 
-  const canAdd = canDo(appUser, "canAddSale") || canDo(appUser, "canViewReports");
+  const canEdit = canDo(appUser, "canAddSale") || canDo(appUser, "canViewReports");
 
-  useEffect(() => {
-    if (!appUser) return;
-    if (!canAdd) {
-      router.replace("/receivals");
-      addToast("warning", "You don't have permission to add receivals.");
-    }
-  }, [appUser, canAdd, router, addToast]);
-
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
   // Form State
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState("");
   const [source, setSource] = useState<ReceivalSource>("Pigfood Truck");
   const [truckNumber, setTruckNumber] = useState("");
   const [weightIn, setWeightIn] = useState<number | "">("");
@@ -42,29 +38,53 @@ export default function NewReceivalPage() {
   const [bones, setBones] = useState<number | "">("");
   const [veggies, setVeggies] = useState<number | "">("");
 
-  // Existing Receivals on selected date
-  const [existingReceivals, setExistingReceivals] = useState<Receival[]>([]);
-  const [loadingExisting, setLoadingExisting] = useState(false);
-
   useEffect(() => {
-    async function loadExisting() {
-      if (!date) return;
-      setLoadingExisting(true);
+    if (!appUser) return;
+    if (!canEdit) {
+      router.replace("/receivals");
+      addToast("warning", "You don't have permission to edit receivals.");
+      return;
+    }
+
+    async function load() {
       try {
-        const start = new Date(date);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(date);
-        end.setHours(23, 59, 59, 999);
-        const data = await getReceivalsByDateRange(start, end);
-        setExistingReceivals(data);
+        const receival = await getReceival(id);
+        if (!receival) {
+          addToast("error", "Receival not found");
+          router.replace("/receivals");
+          return;
+        }
+        
+        let dateStr = "";
+        if (receival.date) {
+            const d = 'toDate' in receival.date ? receival.date.toDate() : new Date(receival.date as any);
+            dateStr = d.toISOString().slice(0, 10);
+        } else if (receival.createdAt) {
+            const d = 'toDate' in receival.createdAt ? receival.createdAt.toDate() : new Date(receival.createdAt as any);
+            dateStr = d.toISOString().slice(0, 10);
+        }
+
+        setDate(dateStr);
+        setSource(receival.source);
+        setTruckNumber(receival.truckNumber || "");
+        setWeightIn(receival.weightIn ?? "");
+        setWeightOut(receival.weightOut ?? "");
+        setNetWeight(receival.netWeight ?? "");
+        setNotes(receival.notes || "");
+        
+        setCookedFood(receival.cookedFood ?? "");
+        setBread(receival.bread ?? "");
+        setMeat(receival.meat ?? "");
+        setBones(receival.bones ?? "");
+        setVeggies(receival.veggies ?? "");
       } catch (err) {
-        console.error("Failed to load existing receivals", err);
+        addToast("error", "Error loading receival");
       } finally {
-        setLoadingExisting(false);
+        setLoading(false);
       }
     }
-    loadExisting();
-  }, [date]);
+    load();
+  }, [appUser, canEdit, router, addToast, id]);
 
   // Auto-calculate Net Weight for Pigfood Truck
   useEffect(() => {
@@ -97,18 +117,6 @@ export default function NewReceivalPage() {
       return;
     }
 
-    // Validation
-    if (existingReceivals.some(r => r.source === source)) {
-      addToast("error", `A receival for '${source}' is already recorded on this date.`);
-      return;
-    }
-    
-    const uniqueSources = new Set(existingReceivals.map(r => r.source));
-    if (uniqueSources.size >= 2 && !uniqueSources.has(source)) {
-      addToast("error", "Maximum of 2 different truck types are allowed per day.");
-      return;
-    }
-
     setSaving(true);
     try {
       const dataToSubmit: any = {
@@ -123,22 +131,25 @@ export default function NewReceivalPage() {
       };
 
       if (truckNumber.trim()) dataToSubmit.truckNumber = truckNumber.trim();
+      else dataToSubmit.truckNumber = null; // Need to figure out if we just delete or what.
+      
       if (weightIn !== "") dataToSubmit.weightIn = weightIn;
       if (weightOut !== "") dataToSubmit.weightOut = weightOut;
       if (notes.trim()) dataToSubmit.notes = notes.trim();
 
-      await addReceival(dataToSubmit, appUser.uid);
+      await updateReceival(id, dataToSubmit);
       
-      addToast("success", "Receival logged successfully!");
+      addToast("success", "Receival updated successfully!");
       router.push("/receivals");
     } catch (err) {
       console.error(err);
-      addToast("error", "Failed to log receival. Please try again.");
+      addToast("error", "Failed to update receival. Please try again.");
       setSaving(false);
     }
   }
 
-  if (!appUser || !canAdd) return null;
+  if (!appUser || !canEdit) return null;
+  if (loading) return <PageSpinner />;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-12">
@@ -151,9 +162,9 @@ export default function NewReceivalPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            Log New Receival
+            Edit Receival
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Record incoming supply weights</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Update incoming supply details</p>
         </div>
       </div>
 
@@ -323,41 +334,10 @@ export default function NewReceivalPage() {
             ) : (
               <Save className="h-5 w-5" />
             )}
-            Save Receival
+            Update Receival
           </button>
         </div>
       </form>
-
-      {/* Existing Receivals Table */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700/50 dark:bg-gray-800/50 mt-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Receivals on {date}</h2>
-        {loadingExisting ? (
-           <p className="text-sm text-gray-500">Loading...</p>
-        ) : existingReceivals.length === 0 ? (
-           <p className="text-sm text-gray-500">No receivals recorded for this date yet.</p>
-        ) : (
-           <div className="overflow-x-auto">
-             <table className="w-full text-sm text-left">
-               <thead>
-                 <tr className="border-b dark:border-gray-700/50">
-                   <th className="py-2 text-gray-500">Source</th>
-                   <th className="py-2 text-gray-500">Truck #</th>
-                   <th className="py-2 text-gray-500 text-right">Total KGs</th>
-                 </tr>
-               </thead>
-               <tbody>
-                 {existingReceivals.map(r => (
-                   <tr key={r.id} className="border-b dark:border-gray-700/50 last:border-0">
-                     <td className="py-3 font-medium text-gray-900 dark:text-white">{r.source}</td>
-                     <td className="py-3 font-mono text-gray-500">{r.truckNumber || "—"}</td>
-                     <td className="py-3 font-bold text-emerald-600 text-right">{r.netWeight.toLocaleString()} kg</td>
-                   </tr>
-                 ))}
-               </tbody>
-             </table>
-           </div>
-        )}
-      </div>
     </div>
   );
 }

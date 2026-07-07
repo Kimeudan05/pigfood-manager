@@ -11,7 +11,7 @@ import { PageSpinner } from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { canDo } from "@/lib/rbac";
-import { Plus, Search, Trash2, Truck, Filter, ChevronLeft, ChevronRight, Lock } from "lucide-react";
+import { Plus, Search, Trash2, Edit2, Truck, Filter, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 
 const PER_PAGE = 12;
 
@@ -167,6 +167,9 @@ export default function ReceivalsPage() {
                     <td className="px-5 py-3.5 text-right font-semibold text-gray-900 dark:text-white">{r.netWeight.toLocaleString()} kg</td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-1">
+                        {canAdd ? (
+                          <Link href={`/receivals/${r.id}/edit`} className="rounded-lg p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-colors" title="Edit"><Edit2 className="h-4 w-4" /></Link>
+                        ) : null}
                         {canDelete ? (
                           <button onClick={() => setDelTarget(r)} className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" title="Delete"><Trash2 className="h-4 w-4" /></button>
                         ) : (
@@ -193,6 +196,9 @@ export default function ReceivalsPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">{formatDate(r.createdAt)}</span>
                   <div className="flex gap-1">
+                    {canAdd && (
+                      <Link href={`/receivals/${r.id}/edit`} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="h-4 w-4" /></Link>
+                    )}
                     {canDelete ? (
                       <button onClick={() => setDelTarget(r)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
                     ) : (

@@ -187,8 +187,34 @@ export interface ReceivalFormData extends ReceivalFractions {
 
 // ---------- Reports & Notes ----------
 export interface WeeklyNote {
-  id: string; // The weekKey, e.g. "Jul 01"
+  id: string; // The weekKey, e.g. "2026-07-06"
   note: string;
   createdBy: string;
   updatedAt: Timestamp | Date;
+}
+
+export interface WeeklyAgg {
+  weekKey: string;     // e.g. "2026-07-06"
+  weekLabel: string;   // e.g. "Jul 06"
+  timestamp: number;
+  salesRevenue: number;
+  salesKgs: number;
+  receivalsKgs: number;
+  pigfoodTruckKgs: number;
+  normalTruckKgs: number;
+  conveyorKgs: number;
+  salesFractions: {
+    cookedFood: number;
+    bread: number;
+    meat: number;
+    bones: number;
+    veggies: number;
+  };
+  receivalFractions: {
+    cookedFood: number;
+    bread: number;
+    meat: number;
+    bones: number;
+    veggies: number;
+  };
 }
