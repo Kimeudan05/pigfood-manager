@@ -332,3 +332,62 @@ export async function deleteWeeklyNote(weekKey: string): Promise<void> {
   await deleteDoc(doc(db, "weeklyNotes", weekKey));
 }
 
+// ---------- Session Tracking ----------
+
+const sessionsRef = collection(db, "user_sessions");
+
+/** Start a new user session */
+export async function startUserSession(
+  userId: string,
+  email: string | null,
+  displayName: string | null,
+  photoURL: string | null
+): Promise<string> {
+  const now = Date.now();
+  const docRef = await addDoc(sessionsRef, {
+    userId,
+    email,
+    displayName,
+    photoURL,
+    startTime: now,
+    lastActive: now,
+    duration: 0,
+  });
+  return docRef.id;
+}
+
+/** Update an existing user session's lastActive and duration */
+export async function updateUserSession(sessionId: string, startTime: number): Promise<void> {
+  const docRef = doc(db, "user_sessions", sessionId);
+  const now = Date.now();
+  // Duration in seconds
+  const duration = Math.floor((now - startTime) / 1000);
+  await updateDoc(docRef, {
+    lastActive: now,
+    duration,
+  });
+}
+
+/** Get currently active sessions (active within last 5 minutes) */
+export async function getActiveSessions(): Promise<import("@/types").UserSession[]> {
+  const fiveMinsAgo = Date.now() - 5 * 60 * 1000;
+  const q = query(
+    sessionsRef,
+    where("lastActive", ">=", fiveMinsAgo),
+    orderBy("lastActive", "desc")
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as import("@/types").UserSession));
+}
+
+/** Get sessions since a specific timestamp */
+export async function getSessionsSince(timestamp: number): Promise<import("@/types").UserSession[]> {
+  const q = query(
+    sessionsRef,
+    where("startTime", ">=", timestamp),
+    orderBy("startTime", "desc")
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as import("@/types").UserSession));
+}
+

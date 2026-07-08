@@ -145,8 +145,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Session tracking refs
+  const sessionIdRef = useRef<string | null>(null);
+  const sessionStartTimeRef = useRef<number>(0);
+  const lastActivityAtRef = useRef<number>(Date.now());
+  const lastSessionUpdateAtRef = useRef<number>(0);
+
   // ── Inactivity auto-logout ──────────────────────────────────────────────
   const resetInactivityTimer = useCallback(() => {
+    lastActivityAtRef.current = Date.now();
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(async () => {
       await signOut(auth);
@@ -166,6 +173,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, resetInactivityTimer]);
 
+  // ── Session update heartbeat ────────────────────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(async () => {
+      if (sessionIdRef.current && sessionStartTimeRef.current) {
+        // Only update if there has been activity since the last update
+        if (lastActivityAtRef.current > lastSessionUpdateAtRef.current) {
+          try {
+            const { updateUserSession } = await import("@/lib/firestore");
+            await updateUserSession(sessionIdRef.current, sessionStartTimeRef.current);
+            lastSessionUpdateAtRef.current = Date.now();
+          } catch (err) {
+            console.error("Failed to update user session", err);
+          }
+        }
+      }
+    }, 60 * 1000); // 1 minute
+    return () => clearInterval(interval);
+  }, [user]);
+
   // ── Auth state listener ─────────────────────────────────────────────────
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -175,11 +202,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAppUser(au);
         setUserRole(au.role);
         setUserStatus(au.status ?? "approved");
+
+        // Start session if not started
+        if (!sessionIdRef.current) {
+          try {
+            const { startUserSession } = await import("@/lib/firestore");
+            const sid = await startUserSession(
+              firebaseUser.uid,
+              firebaseUser.email,
+              firebaseUser.displayName,
+              firebaseUser.photoURL
+            );
+            sessionIdRef.current = sid;
+            sessionStartTimeRef.current = Date.now();
+            lastSessionUpdateAtRef.current = Date.now();
+          } catch (err) {
+            console.error("Failed to start user session", err);
+          }
+        }
       } else {
         setUser(null);
         setAppUser(null);
         setUserRole(null);
         setUserStatus(null);
+        sessionIdRef.current = null;
       }
       setLoading(false);
     });

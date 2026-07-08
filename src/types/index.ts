@@ -225,3 +225,16 @@ export interface WeeklyAgg {
     veggies: number;
   };
 }
+
+// ---------- User Sessions ----------
+export interface UserSession {
+  id: string;
+  userId: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  startTime: number;     // epoch ms
+  lastActive: number;    // epoch ms
+  duration: number;      // in seconds
+}
+

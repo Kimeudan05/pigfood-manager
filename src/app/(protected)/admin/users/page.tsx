@@ -6,7 +6,7 @@
 // Tab 1 — All Users: list, role change, approve/reject
 // Tab 2 — Permissions: per-role defaults grid + per-user overrides
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -17,9 +17,11 @@ import {
   updateUserPermissions,
   updateUserDoc,
   deleteUserDoc,
+  getActiveSessions,
+  getSessionsSince,
 } from "@/lib/firestore";
 import { auth } from "@/lib/firebase";
-import { AppUser, UserRole, GranularPermissions } from "@/types";
+import { AppUser, UserRole, GranularPermissions, UserSession } from "@/types";
 import {
   ROLE_LABELS,
   ROLE_BADGE_CLASSES,
@@ -54,10 +56,12 @@ import {
   Leaf,
   EyeOff,
   TrendingUp,
+  Activity,
+  History,
 } from "lucide-react";
 import { formatDate } from "@/utils/formatters";
 
-type Tab = "users" | "permissions";
+type Tab = "users" | "permissions" | "activity";
 
 // ── helper ──────────────────────────────────────────────────────────────────
 
@@ -111,6 +115,32 @@ export default function AdminUsersPage() {
   const [savingAction, setSavingAction] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Activity tab state
+  const [activeSessions, setActiveSessions] = useState<UserSession[]>([]);
+  const [weeklySessions, setWeeklySessions] = useState<UserSession[]>([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
+
+  const groupedWeekly = useMemo(() => {
+    const map: Record<string, { user: UserSession, totalTime: number }> = {};
+    weeklySessions.forEach(s => {
+      if (!map[s.userId]) {
+        map[s.userId] = { user: s, totalTime: 0 };
+      }
+      map[s.userId].totalTime += s.duration;
+      if (s.lastActive > map[s.userId].user.lastActive) {
+        map[s.userId].user = s;
+      }
+    });
+    return Object.values(map).sort((a, b) => b.totalTime - a.totalTime);
+  }, [weeklySessions]);
+
+  function formatDuration(seconds: number) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  }
+
   const handleManualRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -146,6 +176,36 @@ export default function AdminUsersPage() {
       setLoading(false);
     }
   }, []);
+
+  const loadActivityData = useCallback(async () => {
+    setLoadingActivity(true);
+    try {
+      // get active sessions (last 5 mins)
+      const active = await getActiveSessions();
+      setActiveSessions(active);
+
+      // get weekly sessions (start of Monday)
+      const now = new Date();
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+      const monday = new Date(now.setDate(diff));
+      monday.setHours(0, 0, 0, 0);
+
+      const weekly = await getSessionsSince(monday.getTime());
+      setWeeklySessions(weekly);
+    } catch (err) {
+      console.error(err);
+      addToast("error", "Failed to load activity data");
+    } finally {
+      setLoadingActivity(false);
+    }
+  }, [addToast]);
+
+  useEffect(() => {
+    if (tab === "activity") {
+      loadActivityData();
+    }
+  }, [tab, loadActivityData]);
 
   async function handleRoleChange(uid: string, role: UserRole) {
     setActionUid(uid);
@@ -367,7 +427,7 @@ export default function AdminUsersPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-xl bg-gray-100 p-1 w-fit dark:bg-gray-800">
-        {(["users", "permissions"] as Tab[]).map((t) => (
+        {(["users", "permissions", "activity"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -377,11 +437,9 @@ export default function AdminUsersPage() {
                 : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
             }`}
           >
-            {t === "users" ? (
-              <span className="flex items-center gap-1.5"><Users className="h-4 w-4" /> All Users</span>
-            ) : (
-              <span className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Permissions</span>
-            )}
+            {t === "users" && <span className="flex items-center gap-1.5"><Users className="h-4 w-4" /> All Users</span>}
+            {t === "permissions" && <span className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Permissions</span>}
+            {t === "activity" && <span className="flex items-center gap-1.5"><Activity className="h-4 w-4" /> Activity</span>}
           </button>
         ))}
       </div>
@@ -883,6 +941,122 @@ export default function AdminUsersPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── TAB: Activity ── */}
+      {tab === "activity" && (
+        <div className="space-y-6 animate-fade-in">
+          {loadingActivity ? (
+            <div className="flex justify-center py-10"><Spinner /></div>
+          ) : (
+            <>
+              {/* Active Sessions */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  Currently Active Users
+                </h3>
+                {activeSessions.length === 0 ? (
+                  <div className="rounded-2xl border border-gray-200 border-dashed bg-gray-50/50 p-8 text-center dark:border-gray-700/50 dark:bg-gray-800/20">
+                    <p className="text-sm text-gray-500">No active users in the last 5 minutes.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {activeSessions.map((s) => (
+                      <div key={s.id} className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/50 to-white p-4 shadow-sm dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-gray-800/50">
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-10 w-10 shrink-0">
+                            {s.photoURL ? (
+                              <img src={s.photoURL} alt="avatar" className="h-10 w-10 rounded-full object-cover ring-2 ring-emerald-500/20" />
+                            ) : (
+                              <div className="h-10 w-10 rounded-full bg-emerald-600 flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                                {(s.displayName || s.email || "?").charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-gray-800" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900 dark:text-white text-sm">{s.displayName || "Unknown"}</p>
+                            <p className="text-xs text-gray-500 truncate max-w-[140px]">{s.email}</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-emerald-100/50 dark:border-emerald-900/30 flex justify-between items-center text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                          <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Session: {formatDuration(s.duration)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Weekly Usage */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <History className="h-5 w-5 text-indigo-500" />
+                  Weekly Usage Time
+                </h3>
+                <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden dark:border-gray-700/50 dark:bg-gray-800/50 shadow-sm">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 bg-gray-50/50 dark:border-gray-700/50 dark:bg-gray-800/50">
+                        <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-500">User</th>
+                        <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-500">Total Hours (This Week)</th>
+                        <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-500">Last Active</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-700/30">
+                      {groupedWeekly.map((item) => (
+                        <tr key={item.user.userId} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="relative h-8 w-8 shrink-0">
+                                {item.user.photoURL ? (
+                                  <img src={item.user.photoURL} alt="avatar" className="h-8 w-8 rounded-full object-cover" />
+                                ) : (
+                                  <div className="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                                    {(item.user.displayName || item.user.email || "?").charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900 dark:text-white">{item.user.displayName || "Unknown"}</p>
+                                <p className="text-xs text-gray-500">{item.user.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-24 h-2 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                                <div 
+                                  className="h-full bg-indigo-500 rounded-full"
+                                  style={{ width: `${Math.min(100, (item.totalTime / (40 * 3600)) * 100)}%` }}
+                                />
+                              </div>
+                              <span className="font-semibold text-gray-700 dark:text-gray-300">
+                                {formatDuration(item.totalTime)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5 text-xs text-gray-500">
+                            {formatDate(new Date(item.user.lastActive))}
+                          </td>
+                        </tr>
+                      ))}
+                      {groupedWeekly.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-5 py-8 text-center text-gray-500">No activity recorded this week.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
