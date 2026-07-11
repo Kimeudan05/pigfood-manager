@@ -306,6 +306,30 @@ export async function getReceivalsByDateRange(start: Date, end: Date): Promise<i
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as import("@/types").Receival));
 }
 
+/** Get receivals for a specific date string (YYYY-MM-DD) */
+export async function getReceivalsByDateStr(dateStr: string): Promise<import("@/types").Receival[]> {
+  const q = query(
+    receivalsRef,
+    where("date", "==", dateStr)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as import("@/types").Receival));
+}
+
+/** Get unique truck numbers used in receivals */
+export async function getUniqueTruckNumbers(): Promise<string[]> {
+  // Currently fetching all and extracting. For large datasets, 
+  // a separate collection or cloud function should maintain this list.
+  const all = await getAllReceivals();
+  const set = new Set<string>();
+  all.forEach(r => {
+    if (r.truckNumber && r.truckNumber.trim() !== "") {
+      set.add(r.truckNumber.trim().toUpperCase());
+    }
+  });
+  return Array.from(set).sort();
+}
+
 // ---------- Reports & Notes ----------
 
 const weeklyNotesRef = collection(db, "weeklyNotes");

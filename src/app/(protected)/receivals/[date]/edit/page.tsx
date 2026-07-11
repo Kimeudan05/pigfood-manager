@@ -1,29 +1,37 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { canDo } from "@/lib/rbac";
-import { addReceival, getReceivalsByDateStr, getUniqueTruckNumbers } from "@/lib/firestore";
+import { getReceivalsByDateStr, addReceival, updateReceival, deleteReceival, getUniqueTruckNumbers } from "@/lib/firestore";
 import { useToast } from "@/contexts/ToastContext";
 import { ArrowLeft, Save, Truck, Scale, FileText } from "lucide-react";
-import { ReceivalSource } from "@/types";
+import { ReceivalSource, Receival } from "@/types";
+import { PageSpinner } from "@/components/ui/Spinner";
 
-export default function NewDailyReceivalPage() {
+export default function EditDailyReceivalPage() {
   const router = useRouter();
+  const params = useParams();
+  const dateParam = params.date as string;
   const { appUser } = useAuth();
   const { addToast } = useToast();
 
-  const canAdd = canDo(appUser, "canAddSale") || canDo(appUser, "canViewReports");
+  const canEdit = canDo(appUser, "canAddSale") || canDo(appUser, "canViewReports");
 
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [checkingDate, setCheckingDate] = useState(false);
+  
+  // Existing data tracking
+  const [existingPigfood, setExistingPigfood] = useState<Receival | null>(null);
+  const [existingConveyor, setExistingConveyor] = useState<Receival | null>(null);
+  const [existingNormalTruck, setExistingNormalTruck] = useState<Receival | null>(null);
 
   // Form State
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(dateParam);
   
   // Pigfood Truck State
-  const [hasPigfood, setHasPigfood] = useState(true); // Default to true
+  const [hasPigfood, setHasPigfood] = useState(false);
   const [pfTruckNumber, setPfTruckNumber] = useState("");
   const [pfWeightIn, setPfWeightIn] = useState<number | "">("");
   const [pfWeightOut, setPfWeightOut] = useState<number | "">("");
@@ -38,7 +46,7 @@ export default function NewDailyReceivalPage() {
   const [ntTruckNumber, setNtTruckNumber] = useState("");
   const [ntNetWeight, setNtNetWeight] = useState<number | "">("");
 
-  // Fractions
+  // Fractions (Combined for the day)
   const [cookedFood, setCookedFood] = useState<number | "">("");
   const [bread, setBread] = useState<number | "">("");
   const [meat, setMeat] = useState<number | "">("");
@@ -50,34 +58,75 @@ export default function NewDailyReceivalPage() {
 
   useEffect(() => {
     if (!appUser) return;
-    if (!canAdd) {
+    if (!canEdit) {
       router.replace("/receivals");
-      addToast("warning", "You don't have permission to add receivals.");
+      addToast("warning", "You don't have permission to edit receivals.");
+      return;
     }
-    
-    // Load unique trucks for datalist
-    getUniqueTruckNumbers().then(trucks => setAvailableTrucks(trucks)).catch(console.error);
-  }, [appUser, canAdd, router, addToast]);
 
-  // Check if date already exists
-  useEffect(() => {
-    async function checkDate() {
-      if (!date) return;
-      setCheckingDate(true);
+    async function load() {
       try {
-        const existing = await getReceivalsByDateStr(date);
-        if (existing.length > 0) {
-          addToast("info", `Logs already exist for ${date}. Redirecting to edit...`);
-          router.replace(`/receivals/${date}/edit`);
+        const [receivals, trucks] = await Promise.all([
+          getReceivalsByDateStr(dateParam),
+          getUniqueTruckNumbers()
+        ]);
+        
+        setAvailableTrucks(trucks);
+
+        if (receivals.length === 0) {
+          addToast("error", "No logs found for this date.");
+          router.replace("/receivals");
+          return;
         }
+
+        // Initialize from existing
+        let fCooked = 0, fBread = 0, fMeat = 0, fBones = 0, fVeggies = 0;
+        let dayNotes = "";
+
+        receivals.forEach(r => {
+          if (r.source === "Pigfood Truck") {
+            setExistingPigfood(r);
+            setHasPigfood(true);
+            setPfTruckNumber(r.truckNumber || "");
+            setPfWeightIn(r.weightIn ?? "");
+            setPfWeightOut(r.weightOut ?? "");
+            setPfNetWeight(r.netWeight ?? "");
+          } else if (r.source === "Conveyor (Local)") {
+            setExistingConveyor(r);
+            setHasConveyor(true);
+            setConvNetWeight(r.netWeight ?? "");
+          } else if (r.source === "Normal Truck") {
+            setExistingNormalTruck(r);
+            setHasNormalTruck(true);
+            setNtTruckNumber(r.truckNumber || "");
+            setNtNetWeight(r.netWeight ?? "");
+          }
+
+          // Accumulate fractions (though usually only one source has them)
+          fCooked += (r.cookedFood || 0);
+          fBread += (r.bread || 0);
+          fMeat += (r.meat || 0);
+          fBones += (r.bones || 0);
+          fVeggies += (r.veggies || 0);
+          if (r.notes) dayNotes += r.notes + "\n";
+        });
+
+        setCookedFood(fCooked || "");
+        setBread(fBread || "");
+        setMeat(fMeat || "");
+        setBones(fBones || "");
+        setVeggies(fVeggies || "");
+        setNotes(dayNotes.trim());
+
       } catch (err) {
-        console.error("Error checking date", err);
+        console.error("Load Error:", err);
+        addToast("error", "Error loading daily log");
       } finally {
-        setCheckingDate(false);
+        setLoading(false);
       }
     }
-    checkDate();
-  }, [date, router, addToast]);
+    load();
+  }, [appUser, canEdit, router, addToast, dateParam]);
 
   // Auto-calculate Pigfood Net Weight
   useEffect(() => {
@@ -104,6 +153,7 @@ export default function NewDailyReceivalPage() {
       // Helper to process a source
       const processSource = async (
         hasSource: boolean,
+        existing: Receival | null,
         sourceType: ReceivalSource,
         netW: number | "",
         wIn: number | "",
@@ -111,7 +161,11 @@ export default function NewDailyReceivalPage() {
         tNum: string,
         applyFractions: boolean
       ) => {
-        if (!hasSource) return;
+        if (!hasSource) {
+          if (existing) promises.push(deleteReceival(existing.id));
+          return;
+        }
+
         if (netW === "" || netW <= 0) return;
 
         const data: any = {
@@ -127,10 +181,16 @@ export default function NewDailyReceivalPage() {
         };
 
         if (tNum.trim()) data.truckNumber = tNum.trim().toUpperCase();
+        else data.truckNumber = null;
+
         if (wIn !== "") data.weightIn = wIn;
         if (wOut !== "") data.weightOut = wOut;
 
-        promises.push(addReceival(data, appUser.uid));
+        if (existing) {
+          promises.push(updateReceival(existing.id, data));
+        } else {
+          promises.push(addReceival(data, appUser.uid));
+        }
       };
 
       // Prioritize who gets fractions/notes
@@ -139,22 +199,23 @@ export default function NewDailyReceivalPage() {
       else if (hasConveyor) convFractions = true;
       else if (hasNormalTruck) ntFractions = true;
 
-      await processSource(hasPigfood, "Pigfood Truck", pfNetWeight, pfWeightIn, pfWeightOut, pfTruckNumber, pfFractions);
-      await processSource(hasConveyor, "Conveyor (Local)", convNetWeight, "", "", "", convFractions);
-      await processSource(hasNormalTruck, "Normal Truck", ntNetWeight, "", "", ntTruckNumber, ntFractions);
+      await processSource(hasPigfood, existingPigfood, "Pigfood Truck", pfNetWeight, pfWeightIn, pfWeightOut, pfTruckNumber, pfFractions);
+      await processSource(hasConveyor, existingConveyor, "Conveyor (Local)", convNetWeight, "", "", "", convFractions);
+      await processSource(hasNormalTruck, existingNormalTruck, "Normal Truck", ntNetWeight, "", "", ntTruckNumber, ntFractions);
 
       await Promise.all(promises);
 
-      addToast("success", "Daily log created successfully!");
+      addToast("success", "Daily log updated successfully!");
       router.push("/receivals");
     } catch (err) {
       console.error(err);
-      addToast("error", "Failed to save log. Please try again.");
+      addToast("error", "Failed to update log. Please try again.");
       setSaving(false);
     }
   }
 
-  if (!appUser || !canAdd) return null;
+  if (!appUser || !canEdit) return null;
+  if (loading) return <PageSpinner />;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-12">
@@ -172,9 +233,9 @@ export default function NewDailyReceivalPage() {
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            Log Daily Receival
+            Edit Daily Log
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Record incoming supplies for the day</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Update supply details for {date}</p>
         </div>
         <div className="text-right hidden sm:block">
            <span className="text-sm text-gray-500">Daily Total</span>
@@ -189,11 +250,11 @@ export default function NewDailyReceivalPage() {
            <input
              type="date"
              required
+             readOnly
              value={date}
-             onChange={e => setDate(e.target.value)}
-             className="w-full mt-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+             className="w-full mt-1.5 rounded-xl border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm cursor-not-allowed dark:border-gray-600 dark:bg-gray-900 dark:text-white"
            />
-           {checkingDate && <p className="text-xs text-blue-500 mt-2">Checking if logs exist for this date...</p>}
+           <p className="text-xs text-gray-500 mt-2">Date cannot be changed. Delete and recreate if needed.</p>
         </div>
 
         {/* Sources Selection & Details */}
@@ -326,7 +387,7 @@ export default function NewDailyReceivalPage() {
           
           <button
             type="submit"
-            disabled={saving || checkingDate || (!hasPigfood && !hasConveyor && !hasNormalTruck)}
+            disabled={saving || (!hasPigfood && !hasConveyor && !hasNormalTruck)}
             className="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-xl bg-emerald-600 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
@@ -334,7 +395,7 @@ export default function NewDailyReceivalPage() {
             ) : (
               <Save className="h-5 w-5" />
             )}
-            Save Daily Log
+            Update Daily Log
           </button>
         </div>
       </form>

@@ -11,9 +11,20 @@ import { PageSpinner } from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { canDo } from "@/lib/rbac";
-import { Plus, Search, Trash2, Edit2, Truck, Filter, ChevronLeft, ChevronRight, Lock } from "lucide-react";
+import { Plus, Search, Trash2, Edit2, Truck, Filter, ChevronLeft, ChevronRight, Lock, Calendar } from "lucide-react";
 
 const PER_PAGE = 12;
+
+interface GroupedReceival {
+  dateStr: string;
+  displayDate: string;
+  sources: string[];
+  truckNumbers: string[];
+  truckWeight: number;
+  conveyorWeight: number;
+  totalWeight: number;
+  rawReceivals: Receival[];
+}
 
 export default function ReceivalsPage() {
   const { appUser } = useAuth();
@@ -34,7 +45,7 @@ export default function ReceivalsPage() {
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [delTarget, setDelTarget] = useState<Receival | null>(null);
+  const [delTarget, setDelTarget] = useState<GroupedReceival | null>(null);
   const [delLoading, setDelLoading] = useState(false);
 
   async function load() {
@@ -56,37 +67,86 @@ export default function ReceivalsPage() {
     load();
   }, [appUser, canView, router]);
 
-  const filtered = useMemo(() => {
-    let result = receivals;
+  const grouped = useMemo(() => {
+    // 1. Group by date string
+    const map = new Map<string, GroupedReceival>();
+    
+    receivals.forEach(r => {
+      let dStr = "";
+      if (r.date && typeof r.date === 'string') {
+        dStr = r.date;
+      } else if (r.createdAt) {
+        const d = 'toDate' in r.createdAt ? (r.createdAt as any).toDate() : new Date(r.createdAt as any);
+        if (!isNaN(d.getTime())) dStr = d.toISOString().slice(0, 10);
+      }
+      if (!dStr) return; // Skip if we can't determine a date
+
+      if (!map.has(dStr)) {
+        map.set(dStr, {
+          dateStr: dStr,
+          displayDate: formatDate(r.createdAt || r.date),
+          sources: [],
+          truckNumbers: [],
+          truckWeight: 0,
+          conveyorWeight: 0,
+          totalWeight: 0,
+          rawReceivals: []
+        });
+      }
+
+      const g = map.get(dStr)!;
+      g.rawReceivals.push(r);
+      g.totalWeight += (r.netWeight || 0);
+      
+      if (r.source === "Conveyor (Local)") {
+        g.conveyorWeight += (r.netWeight || 0);
+      } else {
+        g.truckWeight += (r.netWeight || 0);
+      }
+      
+      if (!g.sources.includes(r.source)) {
+        g.sources.push(r.source);
+      }
+      
+      if (r.truckNumber && r.truckNumber.trim() !== "" && !g.truckNumbers.includes(r.truckNumber.trim().toUpperCase())) {
+        g.truckNumbers.push(r.truckNumber.trim().toUpperCase());
+      }
+    });
+
+    // 2. Convert to array and sort by date descending
+    let result = Array.from(map.values()).sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+
+    // 3. Apply filters
     if (search) {
       const t = search.toLowerCase();
-      result = result.filter(r => 
-        r.source.toLowerCase().includes(t) || 
-        (r.truckNumber && r.truckNumber.toLowerCase().includes(t)) ||
-        (r.notes && r.notes.toLowerCase().includes(t))
+      result = result.filter(g => 
+        g.sources.some(s => s.toLowerCase().includes(t)) || 
+        g.truckNumbers.some(tn => tn.toLowerCase().includes(t)) ||
+        g.rawReceivals.some(r => r.notes && r.notes.toLowerCase().includes(t))
       );
     }
     if (dateFilter) {
-      result = result.filter(r => {
-        if (!r.createdAt) return false;
-        const d = toDate(r.createdAt);
-        return d.toISOString().slice(0, 10) === dateFilter;
-      });
+      result = result.filter(g => g.dateStr === dateFilter);
     }
+    
     return result;
   }, [receivals, search, dateFilter]);
 
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const totalPages = Math.ceil(grouped.length / PER_PAGE);
+  const paginated = grouped.slice((page - 1) * PER_PAGE, page * PER_PAGE);
   useEffect(() => { setPage(1); }, [search, dateFilter]);
 
+  // Bulk delete an entire day
   async function handleDelete() {
     if (!delTarget) return;
     if (!canDelete) { denyToast("delete receivals"); setDelTarget(null); return; }
     setDelLoading(true);
     try {
-      await deleteReceival(delTarget.id);
-      addToast("success", "Receival deleted");
+      // Delete all receivals for that day
+      for (const r of delTarget.rawReceivals) {
+        await deleteReceival(r.id);
+      }
+      addToast("success", "Receivals deleted for that date");
       setDelTarget(null);
       await load();
     } catch {
@@ -107,7 +167,7 @@ export default function ReceivalsPage() {
             <Truck className="h-6 w-6 text-emerald-500" />
             Receivals
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{receivals.length} logged receivals</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{grouped.length} days logged</p>
         </div>
         {canAdd ? (
           <Link href="/receivals/new" className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 transition-all">
@@ -137,7 +197,7 @@ export default function ReceivalsPage() {
         {dateFilter && <button onClick={() => setDateFilter("")} className="text-xs text-red-500 hover:text-red-400 self-center">Clear date</button>}
       </div>
 
-      {filtered.length === 0 ? (
+      {grouped.length === 0 ? (
         <EmptyState icon={<Truck className="h-10 w-10 text-emerald-400" />} title={search || dateFilter ? "No matching receivals" : "No receivals logged"} description="Log the first incoming supply to see it here" />
       ) : (
         <>
@@ -145,33 +205,32 @@ export default function ReceivalsPage() {
             <table className="w-full text-sm">
               <thead><tr className="border-b border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/50">
                 <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-500">Date</th>
-                <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-500">Source</th>
-                <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-500">Truck #</th>
-                <th className="px-5 py-3.5 text-right text-xs font-medium text-gray-500">Net Weight (KG)</th>
+                <th className="px-5 py-3.5 text-left text-xs font-medium text-gray-500">Trucks</th>
+                <th className="px-5 py-3.5 text-right text-xs font-medium text-gray-500">Truck (KG)</th>
+                <th className="px-5 py-3.5 text-right text-xs font-medium text-gray-500">Conveyor (KG)</th>
+                <th className="px-5 py-3.5 text-right text-xs font-medium text-gray-500">Total (KG)</th>
                 <th className="px-5 py-3.5 text-right text-xs font-medium text-gray-500">Actions</th>
               </tr></thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700/30">
-                {paginated.map(r => (
-                  <tr key={r.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
-                    <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400">{formatDate(r.createdAt)}</td>
+                {paginated.map(g => (
+                  <tr key={g.dateStr} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
                     <td className="px-5 py-3.5 font-medium text-gray-900 dark:text-white">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
-                        r.source === 'Pigfood Truck' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                        r.source === 'Normal Truck' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
-                        'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
-                      }`}>
-                        {r.source}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-emerald-500" />
+                        {g.displayDate}
+                      </div>
                     </td>
-                    <td className="px-5 py-3.5 font-mono text-xs text-gray-600 dark:text-gray-300">{r.truckNumber || '—'}</td>
-                    <td className="px-5 py-3.5 text-right font-semibold text-gray-900 dark:text-white">{r.netWeight.toLocaleString()} kg</td>
+                    <td className="px-5 py-3.5 font-mono text-xs text-gray-600 dark:text-gray-300">{g.truckNumbers.join(", ") || '—'}</td>
+                    <td className="px-5 py-3.5 text-right text-gray-600 dark:text-gray-300">{g.truckWeight > 0 ? g.truckWeight.toLocaleString() : '—'}</td>
+                    <td className="px-5 py-3.5 text-right text-gray-600 dark:text-gray-300">{g.conveyorWeight > 0 ? g.conveyorWeight.toLocaleString() : '—'}</td>
+                    <td className="px-5 py-3.5 text-right font-bold text-emerald-600 dark:text-emerald-400">{g.totalWeight.toLocaleString()} kg</td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-1">
                         {canAdd ? (
-                          <Link href={`/receivals/${r.id}/edit`} className="rounded-lg p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-colors" title="Edit"><Edit2 className="h-4 w-4" /></Link>
+                          <Link href={`/receivals/${g.dateStr}/edit`} className="rounded-lg p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-colors" title="Edit Day"><Edit2 className="h-4 w-4" /></Link>
                         ) : null}
                         {canDelete ? (
-                          <button onClick={() => setDelTarget(r)} className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" title="Delete"><Trash2 className="h-4 w-4" /></button>
+                          <button onClick={() => setDelTarget(g as any)} className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" title="Delete Day"><Trash2 className="h-4 w-4" /></button>
                         ) : (
                           <button onClick={() => denyToast("delete receivals")} className="rounded-lg p-2 text-gray-200 dark:text-gray-700 cursor-not-allowed" title="Permission required"><Trash2 className="h-4 w-4" /></button>
                         )}
@@ -184,25 +243,34 @@ export default function ReceivalsPage() {
           </div>
 
           <div className="md:hidden space-y-3">
-            {paginated.map(r => (
-              <div key={r.id} className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700/50 dark:bg-gray-800/50">
-                <div className="flex items-start justify-between mb-2">
+            {paginated.map(g => (
+              <div key={g.dateStr} className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700/50 dark:bg-gray-800/50">
+                <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">{r.source}</p>
-                    <p className="text-xs text-gray-500 font-mono">{r.truckNumber || 'No truck #'}</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">{g.displayDate}</p>
+                    <p className="text-xs text-gray-500 font-mono mt-1">{g.truckNumbers.join(", ") || 'No truck #'}</p>
                   </div>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">{r.netWeight.toLocaleString()} kg</span>
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{g.totalWeight.toLocaleString()} kg Total</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">{formatDate(r.createdAt)}</span>
+                
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700">
+                    <span className="block text-[10px] text-gray-500 uppercase tracking-wider">Truck</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{g.truckWeight > 0 ? g.truckWeight.toLocaleString() : '—'}</span>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700">
+                    <span className="block text-[10px] text-gray-500 uppercase tracking-wider">Conveyor</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{g.conveyorWeight > 0 ? g.conveyorWeight.toLocaleString() : '—'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end pt-2 border-t border-gray-100 dark:border-gray-700/50">
                   <div className="flex gap-1">
                     {canAdd && (
-                      <Link href={`/receivals/${r.id}/edit`} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="h-4 w-4" /></Link>
+                      <Link href={`/receivals/${g.dateStr}/edit`} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="h-4 w-4" /></Link>
                     )}
-                    {canDelete ? (
-                      <button onClick={() => setDelTarget(r)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-                    ) : (
-                      <button onClick={() => denyToast("delete receivals")} className="p-1.5 text-gray-200 dark:text-gray-700 cursor-not-allowed"><Trash2 className="h-4 w-4" /></button>
+                    {canDelete && (
+                      <button onClick={() => setDelTarget(g)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
                     )}
                   </div>
                 </div>
@@ -211,8 +279,10 @@ export default function ReceivalsPage() {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">Page {page} of {totalPages}</p>
+            <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700/50">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                Page {page} of {totalPages}
+              </span>
               <div className="flex gap-1">
                 <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-700"><ChevronLeft className="h-4 w-4" /></button>
                 <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-700"><ChevronRight className="h-4 w-4" /></button>
@@ -222,8 +292,15 @@ export default function ReceivalsPage() {
         </>
       )}
 
-      <ConfirmModal isOpen={!!delTarget} onClose={() => setDelTarget(null)} onConfirm={handleDelete} title="Delete Receival"
-        message={`Delete receival of ${delTarget?.netWeight}kg from ${delTarget?.source}?`} confirmLabel="Delete" loading={delLoading} />
+      <ConfirmModal
+        isOpen={!!delTarget}
+        title="Delete Daily Log"
+        message={`Are you sure you want to delete the log for ${delTarget?.displayDate}? This will delete all receivals recorded on this day and cannot be undone.`}
+        onConfirm={handleDelete}
+        onClose={() => setDelTarget(null)}
+        loading={delLoading}
+        confirmLabel="Delete Log"
+      />
     </div>
   );
 }
