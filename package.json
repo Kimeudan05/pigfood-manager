@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
+    "@stripe/stripe-js": "^9.9.0",
     "date-fns": "^4.1.0",
     "firebase": "^12.13.0",
     "firebase-admin": "^13.10.0",
@@ -20,6 +21,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
+    "stripe": "^22.3.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

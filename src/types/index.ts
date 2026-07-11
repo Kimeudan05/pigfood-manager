@@ -8,6 +8,19 @@ import { Timestamp } from "firebase/firestore";
 export type UserRole = 'owner' | 'admin' | 'staff' | 'viewer';
 export type UserStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
+// ---------- Billing ----------
+export type PlanTier = 'basic' | 'standard' | 'pro';
+export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'none';
+
+export interface Subscription {
+  planTier: PlanTier;
+  status: SubscriptionStatus;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  currentPeriodEnd: Timestamp;
+  cancelAtPeriodEnd: boolean;
+}
+
 export interface AuthUser {
   uid: string;
   email: string | null;
@@ -44,6 +57,7 @@ export interface AppUser {
   adminMessage?: string;
   adminMessageRead?: boolean;
   adminNote?: string;
+  subscription?: Subscription;
 }
 
 // ---------- Customer ----------

@@ -249,7 +249,27 @@ export async function deleteUserDoc(uid: string): Promise<void> {
   await import("firebase/firestore").then(({ deleteDoc }) => deleteDoc(ref));
 }
 
-// ---------- Receival Operations ----------
+/** Update a user's Stripe subscription info */
+export async function updateUserSubscription(
+  uid: string,
+  subscription: import("@/types").Subscription
+): Promise<void> {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { subscription });
+}
+
+/** Find a user by their Stripe customer ID */
+export async function getUserByStripeCustomerId(
+  stripeCustomerId: string
+): Promise<import("@/types").AppUser | null> {
+  const q = query(usersRef, where("subscription.stripeCustomerId", "==", stripeCustomerId));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  return { uid: d.id, ...d.data() } as import("@/types").AppUser;
+}
+
+
 
 const receivalsRef = collection(db, "receivals");
 

@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { canDo } from "@/lib/rbac";
+import { isSubscriptionActive } from "@/lib/billing";
 import {
   LayoutDashboard,
   Users,
@@ -21,6 +22,8 @@ import {
   TrendingUp,
   Truck,
   Activity,
+  CreditCard,
+  AlertTriangle,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -33,6 +36,8 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
   const pathname = usePathname();
   const { userRole, appUser } = useAuth();
   const isAdmin = userRole === "owner" || userRole === "admin";
+  const isOwner = userRole === "owner";
+  const subExpired = !isOwner && !isSubscriptionActive(appUser?.subscription);
 
   // Build nav items — all visibility is driven by canDo() which handles
   // both role defaults and per-user overrides. No hardcoded role checks here.
@@ -46,6 +51,7 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
     { href: "/reports/advanced", label: "Advanced Analysis", icon: Activity, show: canDo(appUser, "canViewReports") },
     { href: "/reports",    label: "Reports",    icon: BarChart3,       show: canDo(appUser, "canViewReports") },
     { href: "/profile",    label: "Profile",    icon: User,            show: true },
+    { href: "/billing",    label: "Billing",    icon: CreditCard,      show: true, badge: subExpired },
   ];
 
   const navItems = allNavItems.filter(i => i.show);
@@ -88,7 +94,7 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
             const Icon = item.icon;
             const active = isActive(item.href);
             return (
-              <Link
+            <Link
                 key={item.href}
                 href={item.href}
                 onClick={onMobileClose}
@@ -111,7 +117,12 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
                 >
                   {item.label}
                 </span>
-                {active && (
+                {(item as any).badge && (
+                  <span className={`ml-auto flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-400 ${collapsed ? "lg:hidden" : ""}`}>
+                    <AlertTriangle className="h-2.5 w-2.5 text-amber-900" />
+                  </span>
+                )}
+                {active && !(item as any).badge && (
                   <div className={`ml-auto h-2 w-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 ${collapsed ? "lg:hidden" : ""}`} />
                 )}
                 {/* Tooltip — only shown on desktop when sidebar is collapsed */}
@@ -120,7 +131,7 @@ export default function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarP
                     collapsed ? "" : "lg:hidden"
                   }`}
                 >
-                  {item.label}
+                  {item.label}{(item as any).badge ? " ⚠️" : ""}
                 </span>
               </Link>
             );
