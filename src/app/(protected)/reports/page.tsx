@@ -53,6 +53,7 @@ const REPORT_GROUPS: Array<{
     members: [
       { productKey: "meat25", label: "Meat @ 25", totalKey: "meat25Total", price: 25 },
       { productKey: "meat30", label: "Meat @ 30", totalKey: "meat30Total", price: 30 },
+      { productKey: "meat40", label: "Meat @ 40", totalKey: "meat40Total", price: 40 },
     ],
   },
   {
@@ -203,7 +204,7 @@ export default function ReportsPage() {
   const totalUnits = filteredSales.reduce((sum, s) =>
     sum +
     (s.cookedFood || 0) + (s.bread  || 0) + (s.bread25 || 0) +
-    (s.meat25     || 0) + (s.meat30 || 0) +
+    (s.meat25     || 0) + (s.meat30 || 0) + (s.meat40  || 0) +
     (s.bones      || 0) + (s.bones10 || 0) +
     (s.gradeA     || 0) + (s.veggies || 0),
     0

@@ -6,7 +6,7 @@ describe("Pricing Utility", () => {
   describe("PRODUCTS Configuration", () => {
     it("should contain the correct product list and prices", () => {
       expect(PRODUCTS).toBeInstanceOf(Array);
-      expect(PRODUCTS.length).toBe(8);
+      expect(PRODUCTS.length).toBe(10);
 
       const cookedFood = PRODUCTS.find((p) => p.key === "cookedFood");
       expect(cookedFood).toBeDefined();
@@ -29,6 +29,7 @@ describe("Pricing Utility", () => {
       expect(totals.breadTotal).toBe(0);
       expect(totals.meat25Total).toBe(0);
       expect(totals.meat30Total).toBe(0);
+      expect(totals.meat40Total).toBe(0);
       expect(totals.bonesTotal).toBe(0);
       expect(totals.gradeATotal).toBe(0);
       expect(totals.veggiesTotal).toBe(0);
@@ -39,8 +40,10 @@ describe("Pricing Utility", () => {
       const items: SaleItems = {
         cookedFood: 2, // 2 * 20 = 40
         bread: 1,      // 1 * 20 = 20
+        bread25: 0,
         meat25: 4,     // 4 * 25 = 100
         meat30: 0,
+        meat40: 0,
         bones: 10,     // 10 * 15 = 150
         bones10: 0,
         gradeA: 5,     // 5 * 5  = 25
@@ -68,8 +71,10 @@ describe("Pricing Utility", () => {
       expect(empty).toEqual({
         cookedFood: 0,
         bread:      0,
+        bread25:    0,
         meat25:     0,
         meat30:     0,
+        meat40:     0,
         bones:      0,
         bones10:    0,
         gradeA:     0,

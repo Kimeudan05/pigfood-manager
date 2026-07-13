@@ -13,6 +13,7 @@ export const PRODUCTS: ProductConfig[] = [
   { key: "bread25",    label: "Bread @ 25",    price: 25, totalKey: "bread25Total"    },
   { key: "meat25",     label: "Meat @ 25",     price: 25, totalKey: "meat25Total"     },
   { key: "meat30",     label: "Meat @ 30",     price: 30, totalKey: "meat30Total"     },
+  { key: "meat40",     label: "Meat @ 40",     price: 40, totalKey: "meat40Total"     },
   { key: "bones",      label: "Bones @ 15",    price: 15, totalKey: "bonesTotal"      },
   { key: "bones10",    label: "Bones @ 10",    price: 10, totalKey: "bones10Total"    },
   { key: "gradeA",     label: "Grade A",       price: 5,  totalKey: "gradeATotal"     },
@@ -28,7 +29,7 @@ export const PRODUCT_GROUPS = [
     key: "meat",
     label: "Meat",
     color: "#8b5cf6",
-    members: ["meat25", "meat30"] as const,
+    members: ["meat25", "meat30", "meat40"] as const,
   },
   {
     key: "bones",
@@ -51,6 +52,7 @@ export function calculateTotals(items: SaleItems): SaleTotals {
   const bread25Total    = (items.bread25    ?? 0) * 25;
   const meat25Total     = (items.meat25     ?? 0) * 25;
   const meat30Total     = (items.meat30     ?? 0) * 30;
+  const meat40Total     = (items.meat40     ?? 0) * 40;
   const bonesTotal      = (items.bones      ?? 0) * 15;
   const bones10Total    = (items.bones10    ?? 0) * 10;
   const gradeATotal     = (items.gradeA     ?? 0) * 5;
@@ -62,6 +64,7 @@ export function calculateTotals(items: SaleItems): SaleTotals {
     bread25Total    +
     meat25Total     +
     meat30Total     +
+    meat40Total     +
     bonesTotal      +
     bones10Total    +
     gradeATotal     +
@@ -73,6 +76,7 @@ export function calculateTotals(items: SaleItems): SaleTotals {
     bread25Total,
     meat25Total,
     meat30Total,
+    meat40Total,
     bonesTotal,
     bones10Total,
     gradeATotal,
@@ -89,6 +93,7 @@ export function getEmptySaleItems(): SaleItems {
     bread25:    0,
     meat25:     0,
     meat30:     0,
+    meat40:     0,
     bones:      0,
     bones10:    0,
     gradeA:     0,

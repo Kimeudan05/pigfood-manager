@@ -85,6 +85,7 @@ export interface SaleItems {
   bread25: number;
   meat25: number;
   meat30: number;
+  meat40: number;   // Meat @ 40 bob
   bones: number;    // Bones @ 15 bob
   bones10: number;  // Bones @ 10 bob
   gradeA: number;
@@ -97,6 +98,7 @@ export interface SaleTotals {
   bread25Total: number;
   meat25Total: number;
   meat30Total: number;
+  meat40Total: number;  // Meat @ 40
   bonesTotal: number;   // Bones @ 15
   bones10Total: number; // Bones @ 10
   gradeATotal: number;

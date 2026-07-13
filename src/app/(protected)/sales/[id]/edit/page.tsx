@@ -30,7 +30,7 @@ export default function EditSalePage() {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const [items, setItems] = useState<SaleItems>({
-    cookedFood: 0, bread: 0, bread25: 0, meat25: 0, meat30: 0, bones: 0, bones10: 0, gradeA: 0, veggies: 0,
+    cookedFood: 0, bread: 0, bread25: 0, meat25: 0, meat30: 0, meat40: 0, bones: 0, bones10: 0, gradeA: 0, veggies: 0,
   });
 
   useEffect(() => {
@@ -55,6 +55,7 @@ export default function EditSalePage() {
           bread25:    s.bread25 ?? 0,
           meat25:     s.meat25,
           meat30:     s.meat30,
+          meat40:     s.meat40 ?? 0,  // default 0 for old records
           bones:      s.bones,
           bones10:    s.bones10 ?? 0,  // default 0 for old records
           gradeA:     s.gradeA,
@@ -200,10 +201,10 @@ export default function EditSalePage() {
             {PRODUCTS.filter((product) => {
               if (showLegacyPricing) {
                 // Show older prices
-                return ["cookedFood", "bread", "meat25", "bones10", "gradeA", "veggies"].includes(product.key);
+                return ["cookedFood", "bread", "meat25", "meat30", "bones10", "gradeA", "veggies"].includes(product.key);
               } else {
                 // Show standard/new prices
-                return ["cookedFood", "bread25", "meat30", "bones", "gradeA", "veggies"].includes(product.key);
+                return ["cookedFood", "bread25", "meat40", "bones", "gradeA", "veggies"].includes(product.key);
               }
             }).map(product => {
               const qty = items[product.key];
