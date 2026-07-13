@@ -5,7 +5,7 @@ import { updateUserSubscription, getUserByStripeCustomerId } from "@/lib/firesto
 import { PlanTier, SubscriptionStatus, Subscription } from "@/types";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-06-30.basil",
+  apiVersion: "2026-06-24.dahlia",
 });
 
 // Disable body parsing so we can verify the raw Stripe signature
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
           status: "active",
           stripeCustomerId,
           stripeSubscriptionId,
-          currentPeriodEnd: Timestamp.fromMillis(sub.current_period_end * 1000),
+          currentPeriodEnd: Timestamp.fromMillis((sub.items.data[0]?.current_period_end || 0) * 1000),
           cancelAtPeriodEnd: sub.cancel_at_period_end,
         };
 
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
           status: statusMap[stripeStatus] ?? "none",
           stripeCustomerId,
           stripeSubscriptionId: sub.id,
-          currentPeriodEnd: Timestamp.fromMillis(sub.current_period_end * 1000),
+          currentPeriodEnd: Timestamp.fromMillis((sub.items.data[0]?.current_period_end || 0) * 1000),
           cancelAtPeriodEnd: sub.cancel_at_period_end,
         };
 

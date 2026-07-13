@@ -166,13 +166,13 @@ export default function BillingPage() {
             <div
               key={plan.tier}
               className={`relative rounded-2xl border flex flex-col transition-all duration-200 ${
-                plan.popular
+                "popular" in plan && plan.popular
                   ? "border-blue-400 shadow-xl shadow-blue-500/10 dark:border-blue-500/50 scale-105"
                   : "border-gray-200 shadow-sm hover:shadow-md dark:border-gray-700/50"
               } bg-white dark:bg-gray-800/50`}
             >
               {/* Popular badge */}
-              {plan.popular && (
+              {"popular" in plan && plan.popular && (
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                   <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-lg">
                     Most Popular
