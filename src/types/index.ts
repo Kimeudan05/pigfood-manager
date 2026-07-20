@@ -242,6 +242,40 @@ export interface WeeklyAgg {
   };
 }
 
+// ---------- Period Comparison ----------
+export interface PeriodAgg {
+  label: string;           // e.g. "May 18 – Jun 29"
+  startDate: Date;
+  endDate: Date;
+  salesRevenue: number;
+  salesKgs: number;
+  receivalsKgs: number;
+  pigfoodTruckKgs: number;
+  normalTruckKgs: number;
+  conveyorKgs: number;
+  salesFractions: {
+    cookedFood: number;
+    bread: number;
+    meat: number;
+    bones: number;
+    veggies: number;
+  };
+  salesRevenueFractions: {
+    cookedFood: number;
+    bread: number;
+    meat: number;
+    bones: number;
+    veggies: number;
+  };
+  receivalFractions: {
+    cookedFood: number;
+    bread: number;
+    meat: number;
+    bones: number;
+    veggies: number;
+  };
+}
+
 // ---------- User Sessions ----------
 export interface UserSession {
   id: string;
