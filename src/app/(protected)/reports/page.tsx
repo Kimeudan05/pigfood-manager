@@ -214,14 +214,22 @@ export default function ReportsPage() {
 
   const totalRevenue = filteredSales.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
   const avgSale = filteredSales.length > 0 ? totalRevenue / filteredSales.length : 0;
-  const totalUnits = filteredSales.reduce((sum, s) =>
+  const totalUnits = filteredSales.reduce(
+  (sum, s) =>
     sum +
-    (s.cookedFood || 0) + (s.bread  || 0) + (s.bread25 || 0) +
-    (s.meat25     || 0) + (s.meat30 || 0) + (s.meat40  || 0) +
-    (s.bones      || 0) + (s.bones10 || 0) +
-    (s.gradeA     || 0) + (s.veggies || 0),  (s.unga || 0),
-    0
-  );
+    (s.cookedFood || 0) +
+    (s.bread || 0) +
+    (s.bread25 || 0) +
+    (s.meat25 || 0) +
+    (s.meat30 || 0) +
+    (s.meat40 || 0) +
+    (s.bones || 0) +
+    (s.bones10 || 0) +
+    (s.gradeA || 0) +
+    (s.veggies || 0) +
+    (s.unga || 0),
+  0
+);
 
   function handleExport() {
     if (filteredSales.length === 0) { addToast("warning", "No data to export"); return; }
