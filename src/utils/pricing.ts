@@ -18,6 +18,7 @@ export const PRODUCTS: ProductConfig[] = [
   { key: "bones10",    label: "Bones @ 10",    price: 10, totalKey: "bones10Total"    },
   { key: "gradeA",     label: "Grade A",       price: 5,  totalKey: "gradeATotal"     },
   { key: "veggies",    label: "Veggies",       price: 6,  totalKey: "veggiesTotal"    },
+  { key: "unga",       label: "Unga @ 20",     price: 20, totalKey: "ungaTotal"       },
 ];
 
 /**
@@ -57,6 +58,7 @@ export function calculateTotals(items: SaleItems): SaleTotals {
   const bones10Total    = (items.bones10    ?? 0) * 10;
   const gradeATotal     = (items.gradeA     ?? 0) * 5;
   const veggiesTotal    = (items.veggies    ?? 0) * 6;
+  const ungaTotal       = (items.unga       ?? 0) * 20;
 
   const grandTotal =
     cookedFoodTotal +
@@ -68,7 +70,8 @@ export function calculateTotals(items: SaleItems): SaleTotals {
     bonesTotal      +
     bones10Total    +
     gradeATotal     +
-    veggiesTotal;
+    veggiesTotal    +
+    ungaTotal;;
 
   return {
     cookedFoodTotal,
@@ -81,6 +84,7 @@ export function calculateTotals(items: SaleItems): SaleTotals {
     bones10Total,
     gradeATotal,
     veggiesTotal,
+    ungaTotal,
     grandTotal,
   };
 }
@@ -98,6 +102,7 @@ export function getEmptySaleItems(): SaleItems {
     bones10:    0,
     gradeA:     0,
     veggies:    0,
+    unga: 0,
   };
 }
 
