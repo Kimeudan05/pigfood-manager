@@ -77,6 +77,19 @@ const REPORT_GROUPS: Array<{
     color: COLORS[5],
     members: [{ productKey: "veggies", label: "Veggies", totalKey: "veggiesTotal", price: 6 }],
   },
+  {
+  key: "unga",
+  label: "Unga",
+  color: COLORS[6],
+  members: [
+    {
+      productKey: "unga",
+      label: "Unga @ 20",
+      totalKey: "ungaTotal",
+      price: 20,
+    },
+  ],
+},
 ];
 
 export default function ReportsPage() {
@@ -206,7 +219,7 @@ export default function ReportsPage() {
     (s.cookedFood || 0) + (s.bread  || 0) + (s.bread25 || 0) +
     (s.meat25     || 0) + (s.meat30 || 0) + (s.meat40  || 0) +
     (s.bones      || 0) + (s.bones10 || 0) +
-    (s.gradeA     || 0) + (s.veggies || 0),
+    (s.gradeA     || 0) + (s.veggies || 0),  (s.unga || 0),
     0
   );
 
