@@ -90,6 +90,7 @@ export interface SaleItems {
   bones10: number;  // Bones @ 10 bob
   gradeA: number;
   veggies: number;
+  unga:number;
 }
 
 export interface SaleTotals {
@@ -103,6 +104,7 @@ export interface SaleTotals {
   bones10Total: number; // Bones @ 10
   gradeATotal: number;
   veggiesTotal: number;
+  ungaTotal: number;
   grandTotal: number;
 }
 
