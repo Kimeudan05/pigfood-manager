@@ -60,6 +60,7 @@ export default function EditSalePage() {
           bones10:    s.bones10 ?? 0,  // default 0 for old records
           gradeA:     s.gradeA,
           veggies:    s.veggies,
+           unga:      s.unga ?? 0,
         });
       })
       .catch(() => addToast("error", "Failed to load sale"))
