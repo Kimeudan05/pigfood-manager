@@ -93,6 +93,8 @@ export default function SalesPage() {
       { label: "Bones @10", qty: sale.bones10, total: sale.bones10Total, price: 10 },
       { label: "Grade A", qty: sale.gradeA, total: sale.gradeATotal, price: 5 },
       { label: "Veggies", qty: sale.veggies, total: sale.veggiesTotal, price: 6 },
+      { label: "Unga @20", qty: sale.unga,total: sale.ungaTotal, price: 20,
+},
     ].filter(i => i.qty > 0);
 
     w.document.write(`<!DOCTYPE html><html><head><title>Receipt</title><style>
