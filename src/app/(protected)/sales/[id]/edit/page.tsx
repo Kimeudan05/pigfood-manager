@@ -30,7 +30,7 @@ export default function EditSalePage() {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const [items, setItems] = useState<SaleItems>({
-    cookedFood: 0, bread: 0, bread25: 0, meat25: 0, meat30: 0, meat40: 0, bones: 0, bones10: 0, gradeA: 0, veggies: 0,unga: s.unga ?? 0,
+    cookedFood: 0, bread: 0, bread25: 0, meat25: 0, meat30: 0, meat40: 0, bones: 0, bones10: 0, gradeA: 0, veggies: 0,unga: 0,
   });
 
   useEffect(() => {
