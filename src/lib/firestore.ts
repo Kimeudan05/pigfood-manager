@@ -94,6 +94,7 @@ export async function addSale(data: SaleFormData, userId: string): Promise<strin
     bones10:    data.bones10 ?? 0,
     gradeA:     data.gradeA,
     veggies:    data.veggies,
+    unga:       data.unga ?? 0,
   };
 
   const totals: SaleTotals = calculateTotals(items);
@@ -125,6 +126,7 @@ export async function updateSale(id: string, data: SaleFormData): Promise<void> 
     bones10:    data.bones10 ?? 0,
     gradeA:     data.gradeA,
     veggies:    data.veggies,
+    unga:    data.unga ?? 0,
   };
 
   const totals: SaleTotals = calculateTotals(items);
