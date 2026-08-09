@@ -85,16 +85,18 @@ export async function searchCustomers(searchTerm: string): Promise<Customer[]> {
 export async function addSale(data: SaleFormData, userId: string): Promise<string> {
   const items: SaleItems = {
     cookedFood: data.cookedFood,
-    bread:      data.bread,
-    bread25:    data.bread25 ?? 0,
-    meat25:     data.meat25,
-    meat30:     data.meat30,
-    meat40:     data.meat40 ?? 0,
-    bones:      data.bones,
-    bones10:    data.bones10 ?? 0,
-    gradeA:     data.gradeA,
-    veggies:    data.veggies,
-    unga:       data.unga ?? 0,
+    bread: data.bread,
+    bread25: data.bread25 ?? 0,
+    meat25: data.meat25,
+    meat30: data.meat30,
+    meat40: data.meat40 ?? 0,
+    bones: data.bones,
+    bones10: data.bones10 ?? 0,
+    bones13: data.bones13 ?? 0,
+    gradeA: data.gradeA,
+    veggies: data.veggies,
+    unga: data.unga ?? 0,
+    BSF: data.BSF ?? 0,
   };
 
   const totals: SaleTotals = calculateTotals(items);
@@ -117,16 +119,18 @@ export async function addSale(data: SaleFormData, userId: string): Promise<strin
 export async function updateSale(id: string, data: SaleFormData): Promise<void> {
   const items: SaleItems = {
     cookedFood: data.cookedFood,
-    bread:      data.bread,
-    bread25:    data.bread25 ?? 0,
-    meat25:     data.meat25,
-    meat30:     data.meat30,
-    meat40:     data.meat40 ?? 0,
-    bones:      data.bones,
-    bones10:    data.bones10 ?? 0,
-    gradeA:     data.gradeA,
-    veggies:    data.veggies,
-    unga:    data.unga ?? 0,
+    bread: data.bread,
+    bread25: data.bread25 ?? 0,
+    meat25: data.meat25,
+    meat30: data.meat30,
+    meat40: data.meat40 ?? 0,
+    bones: data.bones,
+    bones10: data.bones10 ?? 0,
+    bones13: data.bones13 ?? 0,
+    gradeA: data.gradeA,
+    veggies: data.veggies,
+    unga: data.unga ?? 0,
+    BSF: data.BSF ?? 0,
   };
 
   const totals: SaleTotals = calculateTotals(items);

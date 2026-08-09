@@ -31,66 +31,73 @@ const REPORT_GROUPS: Array<{
   color: string;
   members: { productKey: string; label: string; totalKey: string; price: number }[];
 }> = [
-  {
-    key: "cookedFood",
-    label: "Cooked Food",
-    color: COLORS[0],
-    members: [{ productKey: "cookedFood", label: "Cooked Food", totalKey: "cookedFoodTotal", price: 20 }],
-  },
-  {
-    key: "bread",
-    label: "Bread",
-    color: COLORS[1],
-    members: [
-      { productKey: "bread",   label: "Bread @ 20", totalKey: "breadTotal",   price: 20 },
-      { productKey: "bread25", label: "Bread @ 25", totalKey: "bread25Total", price: 25 },
-    ],
-  },
-  {
-    key: "meat",
-    label: "Meat",
-    color: COLORS[2],
-    members: [
-      { productKey: "meat25", label: "Meat @ 25", totalKey: "meat25Total", price: 25 },
-      { productKey: "meat30", label: "Meat @ 30", totalKey: "meat30Total", price: 30 },
-      { productKey: "meat40", label: "Meat @ 40", totalKey: "meat40Total", price: 40 },
-    ],
-  },
-  {
-    key: "bones",
-    label: "Bones",
-    color: COLORS[3],
-    members: [
-      { productKey: "bones",   label: "Bones @ 15", totalKey: "bonesTotal",   price: 15 },
-      { productKey: "bones10", label: "Bones @ 10", totalKey: "bones10Total", price: 10 },
-    ],
-  },
-  {
-    key: "gradeA",
-    label: "Grade A",
-    color: COLORS[4],
-    members: [{ productKey: "gradeA", label: "Grade A", totalKey: "gradeATotal", price: 5 }],
-  },
-  {
-    key: "veggies",
-    label: "Veggies",
-    color: COLORS[5],
-    members: [{ productKey: "veggies", label: "Veggies", totalKey: "veggiesTotal", price: 6 }],
-  },
-  {
-  key: "unga",
-  label: "Unga",
-  color: COLORS[6],
-  members: [
     {
-      productKey: "unga",
-      label: "Unga @ 20",
-      totalKey: "ungaTotal",
-      price: 20,
+      key: "cookedFood",
+      label: "Cooked Food",
+      color: COLORS[0],
+      members: [{ productKey: "cookedFood", label: "Cooked Food", totalKey: "cookedFoodTotal", price: 20 }],
     },
-  ],
-},
-];
+    {
+      key: "bread",
+      label: "Bread",
+      color: COLORS[1],
+      members: [
+        { productKey: "bread", label: "Bread @ 20", totalKey: "breadTotal", price: 20 },
+        { productKey: "bread25", label: "Bread @ 25", totalKey: "bread25Total", price: 25 },
+      ],
+    },
+    {
+      key: "meat",
+      label: "Meat",
+      color: COLORS[2],
+      members: [
+        { productKey: "meat25", label: "Meat @ 25", totalKey: "meat25Total", price: 25 },
+        { productKey: "meat30", label: "Meat @ 30", totalKey: "meat30Total", price: 30 },
+        { productKey: "meat40", label: "Meat @ 40", totalKey: "meat40Total", price: 40 },
+      ],
+    },
+    {
+      key: "bones",
+      label: "Bones",
+      color: COLORS[3],
+      members: [
+        { productKey: "bones", label: "Bones @ 15", totalKey: "bonesTotal", price: 15 },
+        { productKey: "bones10", label: "Bones @ 10", totalKey: "bones10Total", price: 10 },
+        { productKey: "bones13", label: "Bones @ 13", totalKey: "bones13Total", price: 13 },
+      ],
+    },
+    {
+      key: "gradeA",
+      label: "Grade A",
+      color: COLORS[4],
+      members: [{ productKey: "gradeA", label: "Grade A", totalKey: "gradeATotal", price: 5 }],
+    },
+    {
+      key: "veggies",
+      label: "Veggies",
+      color: COLORS[5],
+      members: [{ productKey: "veggies", label: "Veggies", totalKey: "veggiesTotal", price: 6 }],
+    },
+    {
+      key: "BSF",
+      label: "BSF",
+      color: COLORS[6],
+      members: [{ productKey: "BSF", label: "BSF", totalKey: "BSFTotal", price: 3.5 }],
+    },
+    {
+      key: "unga",
+      label: "Unga",
+      color: COLORS[7],
+      members: [
+        {
+          productKey: "unga",
+          label: "Unga @ 20",
+          totalKey: "ungaTotal",
+          price: 20,
+        },
+      ],
+    },
+  ];
 
 export default function ReportsPage() {
   const { addToast } = useToast();
@@ -173,8 +180,8 @@ export default function ReportsPage() {
   // Used for bar chart and pie chart — Meat and Bones are combined totals.
   const groupedRevenueData = useMemo(() => {
     return REPORT_GROUPS.map((group, i) => {
-      const units   = group.members.reduce((sum, m) => sum + filteredSales.reduce((s2, sale) => s2 + ((sale as any)[m.productKey] || 0), 0), 0);
-      const revenue = group.members.reduce((sum, m) => sum + filteredSales.reduce((s2, sale) => s2 + ((sale as any)[m.totalKey]   || 0), 0), 0);
+      const units = group.members.reduce((sum, m) => sum + filteredSales.reduce((s2, sale) => s2 + ((sale as any)[m.productKey] || 0), 0), 0);
+      const revenue = group.members.reduce((sum, m) => sum + filteredSales.reduce((s2, sale) => s2 + ((sale as any)[m.totalKey] || 0), 0), 0);
       return { name: group.label, units, revenue, color: group.color, groupKey: group.key };
     }).filter(g => g.units > 0);
   }, [filteredSales]);
@@ -188,14 +195,14 @@ export default function ReportsPage() {
 
     return REPORT_GROUPS.map((group, i) => {
       const memberStats = group.members.map(m => {
-        const units   = filteredSales.reduce((sum, s) => sum + ((s as any)[m.productKey] || 0), 0);
-        const revenue = filteredSales.reduce((sum, s) => sum + ((s as any)[m.totalKey]   || 0), 0);
+        const units = filteredSales.reduce((sum, s) => sum + ((s as any)[m.productKey] || 0), 0);
+        const revenue = filteredSales.reduce((sum, s) => sum + ((s as any)[m.totalKey] || 0), 0);
         return { ...m, units, revenue };
       });
-      const totalUnits   = memberStats.reduce((sum, m) => sum + m.units,   0);
-      const totalRev     = memberStats.reduce((sum, m) => sum + m.revenue, 0);
-      const share        = totalRevenue > 0 ? Math.round((totalRev / totalRevenue) * 100) : 0;
-      const isMulti      = group.members.length > 1;
+      const totalUnits = memberStats.reduce((sum, m) => sum + m.units, 0);
+      const totalRev = memberStats.reduce((sum, m) => sum + m.revenue, 0);
+      const share = totalRevenue > 0 ? Math.round((totalRev / totalRevenue) * 100) : 0;
+      const isMulti = group.members.length > 1;
 
       return { group, memberStats, totalUnits, totalRev, share, isMulti, color: group.color };
     }).filter(r => r.totalUnits > 0);
@@ -215,21 +222,23 @@ export default function ReportsPage() {
   const totalRevenue = filteredSales.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
   const avgSale = filteredSales.length > 0 ? totalRevenue / filteredSales.length : 0;
   const totalUnits = filteredSales.reduce(
-  (sum, s) =>
-    sum +
-    (s.cookedFood || 0) +
-    (s.bread || 0) +
-    (s.bread25 || 0) +
-    (s.meat25 || 0) +
-    (s.meat30 || 0) +
-    (s.meat40 || 0) +
-    (s.bones || 0) +
-    (s.bones10 || 0) +
-    (s.gradeA || 0) +
-    (s.veggies || 0) +
-    (s.unga || 0),
-  0
-);
+    (sum, s) =>
+      sum +
+      (s.cookedFood || 0) +
+      (s.bread || 0) +
+      (s.bread25 || 0) +
+      (s.meat25 || 0) +
+      (s.meat30 || 0) +
+      (s.meat40 || 0) +
+      (s.bones || 0) +
+      (s.bones10 || 0) +
+      (s.bones13 || 0) +
+      (s.gradeA || 0) +
+      (s.veggies || 0) +
+      (s.unga || 0) +
+      (s.BSF || 0),
+    0
+  );
 
   function handleExport() {
     if (filteredSales.length === 0) { addToast("warning", "No data to export"); return; }
@@ -275,25 +284,22 @@ export default function ReportsPage() {
             <div className="inline-flex rounded-xl bg-gray-100 p-1 dark:bg-gray-700">
               <button type="button"
                 onClick={() => { setFilterMode("range"); setStartDate(""); setEndDate(""); setSingleDate(""); }}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                  filterMode === "range"
-                    ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                    : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                }`}>Date Range</button>
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${filterMode === "range"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
+                  : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                  }`}>Date Range</button>
               <button type="button"
                 onClick={() => { setFilterMode("single"); setStartDate(""); setEndDate(""); setSingleDate(""); }}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                  filterMode === "single"
-                    ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                    : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                }`}>Single Day</button>
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${filterMode === "single"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
+                  : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                  }`}>Single Day</button>
               <button type="button"
                 onClick={() => { setFilterMode("week"); setStartDate(""); setEndDate(""); setSingleDate(""); setSelectedWeeks([]); }}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                  filterMode === "week"
-                    ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                    : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                }`}>By Week</button>
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${filterMode === "week"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
+                  : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                  }`}>By Week</button>
             </div>
           </div>
 
@@ -312,7 +318,7 @@ export default function ReportsPage() {
               <>
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Weeks:</span>
                 <div className="relative">
-                  <div 
+                  <div
                     onClick={() => setWeekDropdownOpen(!weekDropdownOpen)}
                     className="min-w-[160px] cursor-pointer rounded-xl border border-gray-300 bg-gray-50 py-2 px-3 text-sm text-gray-900 focus:border-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white flex items-center justify-between"
                   >
@@ -325,8 +331,8 @@ export default function ReportsPage() {
                       <div className="absolute top-full left-0 mt-1 w-48 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl z-20 dark:border-gray-700 dark:bg-gray-800 p-2">
                         {availableWeeks.map(opt => (
                           <label key={opt.value} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
-                            <input 
-                              type="checkbox" 
+                            <input
+                              type="checkbox"
                               checked={selectedWeeks.includes(opt.value)}
                               onChange={() => toggleWeek(opt.value)}
                               className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"

@@ -88,9 +88,11 @@ export interface SaleItems {
   meat40: number;   // Meat @ 40 bob
   bones: number;    // Bones @ 15 bob
   bones10: number;  // Bones @ 10 bob
+  bones13: number;  // Bones @ 13 bob
   gradeA: number;
   veggies: number;
-  unga:number;
+  unga: number;
+  BSF: number;
 }
 
 export interface SaleTotals {
@@ -102,9 +104,11 @@ export interface SaleTotals {
   meat40Total: number;  // Meat @ 40
   bonesTotal: number;   // Bones @ 15
   bones10Total: number; // Bones @ 10
+  bones13Total: number; // Bones @ 13
   gradeATotal: number;
   veggiesTotal: number;
   ungaTotal: number;
+  BSFTotal: number;
   grandTotal: number;
 }
 

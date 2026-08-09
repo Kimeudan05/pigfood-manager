@@ -30,7 +30,7 @@ export default function EditSalePage() {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const [items, setItems] = useState<SaleItems>({
-    cookedFood: 0, bread: 0, bread25: 0, meat25: 0, meat30: 0, meat40: 0, bones: 0, bones10: 0, gradeA: 0, veggies: 0,unga: 0,
+    cookedFood: 0, bread: 0, bread25: 0, meat25: 0, meat30: 0, meat40: 0, bones: 0, bones10: 0, bones13: 0, gradeA: 0, veggies: 0, unga: 0, BSF: 0,
   });
 
   useEffect(() => {
@@ -51,16 +51,18 @@ export default function EditSalePage() {
         }
         setItems({
           cookedFood: s.cookedFood,
-          bread:      s.bread,
-          bread25:    s.bread25 ?? 0,
-          meat25:     s.meat25,
-          meat30:     s.meat30,
-          meat40:     s.meat40 ?? 0,  // default 0 for old records
-          bones:      s.bones,
-          bones10:    s.bones10 ?? 0,  // default 0 for old records
-          gradeA:     s.gradeA,
-          veggies:    s.veggies,
-           unga:      s.unga ?? 0,
+          bread: s.bread,
+          bread25: s.bread25 ?? 0,
+          meat25: s.meat25,
+          meat30: s.meat30,
+          meat40: s.meat40 ?? 0,  // default 0 for old records
+          bones: s.bones,
+          bones10: s.bones10 ?? 0,  // default 0 for old records
+          bones13: s.bones13 ?? 0,  // default 0 for old records
+          gradeA: s.gradeA,
+          veggies: s.veggies,
+          unga: s.unga ?? 0,
+          BSF: s.BSF ?? 0,
         });
       })
       .catch(() => addToast("error", "Failed to load sale"))
@@ -184,16 +186,14 @@ export default function EditSalePage() {
               <button
                 type="button"
                 onClick={() => setShowLegacyPricing(!showLegacyPricing)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
-                  showLegacyPricing ? "bg-amber-500" : "bg-emerald-500"
-                }`}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${showLegacyPricing ? "bg-amber-500" : "bg-emerald-500"
+                  }`}
                 role="switch"
                 aria-checked={showLegacyPricing}
               >
                 <span
-                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform ${
-                    showLegacyPricing ? "translate-x-4" : "translate-x-0"
-                  }`}
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform ${showLegacyPricing ? "translate-x-4" : "translate-x-0"
+                    }`}
                 />
               </button>
             </div>
@@ -202,10 +202,10 @@ export default function EditSalePage() {
             {PRODUCTS.filter((product) => {
               if (showLegacyPricing) {
                 // Show older prices
-                return ["cookedFood", "bread", "meat25", "meat30", "bones10", "gradeA", "veggies","unga"].includes(product.key);
+                return ["cookedFood", "bread", "meat25", "meat30", "bones10", "gradeA", "veggies", "unga"].includes(product.key);
               } else {
                 // Show standard/new prices
-                return ["cookedFood", "bread25", "meat40", "bones", "gradeA", "veggies","unga"].includes(product.key);
+                return ["cookedFood", "bread25", "meat40", "bones", "gradeA", "veggies", "unga"].includes(product.key);
               }
             }).map(product => {
               const qty = items[product.key];

@@ -264,16 +264,14 @@ export default function NewSalePage() {
               <button
                 type="button"
                 onClick={() => setShowLegacyPricing(!showLegacyPricing)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
-                  showLegacyPricing ? "bg-amber-500" : "bg-emerald-500"
-                }`}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${showLegacyPricing ? "bg-amber-500" : "bg-emerald-500"
+                  }`}
                 role="switch"
                 aria-checked={showLegacyPricing}
               >
                 <span
-                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform ${
-                    showLegacyPricing ? "translate-x-4" : "translate-x-0"
-                  }`}
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform ${showLegacyPricing ? "translate-x-4" : "translate-x-0"
+                    }`}
                 />
               </button>
             </div>
@@ -282,10 +280,10 @@ export default function NewSalePage() {
             {PRODUCTS.filter((product) => {
               if (showLegacyPricing) {
                 // Show older prices: meat@25, meat@30, bread@20, bones@10, cookedFood, gradeA, veggies,unga
-                return ["cookedFood", "bread", "meat25", "meat30", "bones10", "gradeA", "veggies","unga"].includes(product.key);
+                return ["cookedFood", "bread", "meat25", "meat30", "bones10", "gradeA", "veggies", "unga"].includes(product.key);
               } else {
                 // Show standard/new prices: meat@40, bread@25, bones@15, cookedFood, gradeA, veggies,unga
-                return ["cookedFood", "bread25", "meat40", "bones", "gradeA", "veggies","unga"].includes(product.key);
+                return ["cookedFood", "bread25", "meat40", "bones", "bones13", "gradeA", "veggies", "unga", "BSF"].includes(product.key);
               }
             }).map(product => {
               const qty = items[product.key];

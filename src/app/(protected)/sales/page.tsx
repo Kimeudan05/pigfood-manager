@@ -21,9 +21,9 @@ export default function SalesPage() {
   const router = useRouter();
 
   const canViewSales = canDo(appUser, "canViewSales");
-  const canAdd       = canDo(appUser, "canAddSale");
-  const canEdit      = canDo(appUser, "canEditSale");
-  const canDelete    = canDo(appUser, "canDeleteSale");
+  const canAdd = canDo(appUser, "canAddSale");
+  const canEdit = canDo(appUser, "canEditSale");
+  const canDelete = canDo(appUser, "canDeleteSale");
 
   function denyToast(action: string) {
     addToast("warning", `🔒 You don't have permission to ${action}. Contact your admin.`);
@@ -91,10 +91,12 @@ export default function SalesPage() {
       { label: "Meat @30", qty: sale.meat30, total: sale.meat30Total, price: 30 },
       { label: "Bones", qty: sale.bones, total: sale.bonesTotal, price: 15 },
       { label: "Bones @10", qty: sale.bones10, total: sale.bones10Total, price: 10 },
+      { label: "Bones @13", qty: sale.bones13, total: sale.bones13Total, price: 13 },
       { label: "Grade A", qty: sale.gradeA, total: sale.gradeATotal, price: 5 },
       { label: "Veggies", qty: sale.veggies, total: sale.veggiesTotal, price: 6 },
-      { label: "Unga @20", qty: sale.unga,total: sale.ungaTotal, price: 20,
-},
+      { label: "Unga @20", qty: sale.unga, total: sale.ungaTotal, price: 20 },
+      { label: "BSF", qty: sale.BSF, total: sale.BSFTotal, price: 3.5 },
+
     ].filter(i => i.qty > 0);
 
     w.document.write(`<!DOCTYPE html><html><head><title>Receipt</title><style>
