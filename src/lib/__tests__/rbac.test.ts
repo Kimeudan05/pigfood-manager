@@ -19,10 +19,10 @@ describe("Role-Based Access Control (RBAC)", () => {
       expect(can("admin", "editRecords")).toBe(true);
     });
 
-    it("should restrict staff to only creating records", () => {
+    it("should allow staff to create records and view reports, but restrict management/deletion", () => {
       expect(can("staff", "manageUsers")).toBe(false);
       expect(can("staff", "deleteRecords")).toBe(false);
-      expect(can("staff", "viewReports")).toBe(false);
+      expect(can("staff", "viewReports")).toBe(true);
       expect(can("staff", "createRecords")).toBe(true);
       expect(can("staff", "editRecords")).toBe(false);
     });

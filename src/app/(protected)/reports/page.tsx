@@ -86,12 +86,12 @@ const REPORT_GROUPS: Array<{
     },
     {
       key: "unga",
-      label: "Unga",
+      label: "Dryfood / Unga",
       color: COLORS[7],
       members: [
         {
           productKey: "unga",
-          label: "Unga @ 20",
+          label: "Dryfood / Unga @ 20",
           totalKey: "ungaTotal",
           price: 20,
         },

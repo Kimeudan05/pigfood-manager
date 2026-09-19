@@ -94,7 +94,7 @@ export default function SalesPage() {
       { label: "Bones @13", qty: sale.bones13, total: sale.bones13Total, price: 13 },
       { label: "Grade A", qty: sale.gradeA, total: sale.gradeATotal, price: 5 },
       { label: "Veggies", qty: sale.veggies, total: sale.veggiesTotal, price: 6 },
-      { label: "Unga @20", qty: sale.unga, total: sale.ungaTotal, price: 20 },
+      { label: "Dryfood / Unga @20", qty: sale.unga, total: sale.ungaTotal, price: 20 },
       { label: "BSF", qty: sale.BSF, total: sale.BSFTotal, price: 3.5 },
 
     ].filter(i => i.qty > 0);

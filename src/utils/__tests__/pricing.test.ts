@@ -6,7 +6,7 @@ describe("Pricing Utility", () => {
   describe("PRODUCTS Configuration", () => {
     it("should contain the correct product list and prices", () => {
       expect(PRODUCTS).toBeInstanceOf(Array);
-      expect(PRODUCTS.length).toBe(10);
+      expect(PRODUCTS.length).toBe(13);
 
       const cookedFood = PRODUCTS.find((p) => p.key === "cookedFood");
       expect(cookedFood).toBeDefined();
@@ -17,6 +17,10 @@ describe("Pricing Utility", () => {
 
       const veggies = PRODUCTS.find((p) => p.key === "veggies");
       expect(veggies?.price).toBe(6);
+
+      const unga = PRODUCTS.find((p) => p.key === "unga");
+      expect(unga?.label).toBe("Dryfood / Unga @ 20");
+      expect(unga?.price).toBe(20);
     });
   });
 
@@ -33,6 +37,8 @@ describe("Pricing Utility", () => {
       expect(totals.bonesTotal).toBe(0);
       expect(totals.gradeATotal).toBe(0);
       expect(totals.veggiesTotal).toBe(0);
+      expect(totals.ungaTotal).toBe(0);
+      expect(totals.BSFTotal).toBe(0);
       expect(totals.grandTotal).toBe(0);
     });
 
@@ -46,8 +52,11 @@ describe("Pricing Utility", () => {
         meat40: 0,
         bones: 10,     // 10 * 15 = 150
         bones10: 0,
+        bones13: 0,
         gradeA: 5,     // 5 * 5  = 25
         veggies: 3,    // 3 * 6  = 18
+        unga: 2,       // 2 * 20 = 40
+        BSF: 0,
       };
 
       const totals = calculateTotals(items);
@@ -59,8 +68,9 @@ describe("Pricing Utility", () => {
       expect(totals.bonesTotal).toBe(150);
       expect(totals.gradeATotal).toBe(25);
       expect(totals.veggiesTotal).toBe(18);
+      expect(totals.ungaTotal).toBe(40);
       
-      const expectedGrandTotal = 40 + 20 + 100 + 0 + 150 + 25 + 18;
+      const expectedGrandTotal = 40 + 20 + 100 + 0 + 150 + 25 + 18 + 40;
       expect(totals.grandTotal).toBe(expectedGrandTotal);
     });
   });
@@ -77,8 +87,11 @@ describe("Pricing Utility", () => {
         meat40:     0,
         bones:      0,
         bones10:    0,
+        bones13:    0,
         gradeA:     0,
         veggies:    0,
+        BSF:        0,
+        unga:       0,
       });
     });
   });

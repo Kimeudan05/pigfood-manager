@@ -19,7 +19,7 @@ export const PRODUCTS: ProductConfig[] = [
   { key: "bones13", label: "Bones @ 13", price: 13, totalKey: "bones13Total" },
   { key: "gradeA", label: "Grade A", price: 5, totalKey: "gradeATotal" },
   { key: "veggies", label: "Veggies", price: 6, totalKey: "veggiesTotal" },
-  { key: "unga", label: "Unga @ 20", price: 20, totalKey: "ungaTotal" },
+  { key: "unga", label: "Dryfood / Unga @ 20", price: 20, totalKey: "ungaTotal" },
   { key: "BSF", label: "BSF", price: 3.5, totalKey: "BSFTotal" },
 ];
 
