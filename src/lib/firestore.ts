@@ -828,3 +828,40 @@ export async function getTenantMember(
   if (!snap.exists()) return null;
   return { uid: snap.id, ...snap.data() } as TenantMember;
 }
+
+
+export const tenantCollection = (
+  tenantId: string,
+  collectionName: string
+) => {
+  return collection(db, "tenants", tenantId, collectionName);
+};
+
+export const tenantDoc = (
+  tenantId: string,
+  collectionName: string,
+  id: string
+) => {
+  return doc(db, "tenants", tenantId, collectionName, id);
+};
+
+export const tenantSaleRef = (
+  tenantId: string,
+  saleId: string
+) => {
+  return doc(db, "tenants", tenantId, "sales", saleId);
+};
+
+export const tenantSaleLinesCollection = (
+  tenantId: string,
+  saleId: string
+) => {
+  return collection(
+    db,
+    "tenants",
+    tenantId,
+    "sales",
+    saleId,
+    "saleLines"
+  );
+};

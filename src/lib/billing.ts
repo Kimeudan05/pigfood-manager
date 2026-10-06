@@ -1,20 +1,41 @@
 // ============================================
-// Billing Logic — Plan tiers, feature access
+// Billing / Plan Access
+// Multi-Tenant Version
 // ============================================
 
-import { collection, query, where, getDocs, doc, updateDoc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { PlanTier, SubscriptionStatus, Subscription, AppUser, TenantSubscription, TenantDoc } from "@/types";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 
-// ---------- Plan Definitions ----------
+import { db } from "@/lib/firebase";
+
+import type {
+  PlanTier,
+  Subscription,
+  SubscriptionStatus,
+  TenantDoc,
+  TenantSubscription,
+} from "@/types";
+
+// ============================================================
+// PLAN DEFINITIONS
+// ============================================================
 
 export const PLANS = [
   {
     tier: "basic" as PlanTier,
     name: "Basic",
     price: 5,
-    priceEnvKey: "STRIPE_PRICE_BASIC",
-    description: "Perfect for small operations",
+    priceEnvKey:
+      "STRIPE_PRICE_BASIC",
+    description:
+      "Perfect for small operations",
     color: "emerald",
     features: [
       "Dashboard & analytics",
@@ -23,12 +44,15 @@ export const PLANS = [
       "Up to 3 users",
     ],
   },
+
   {
     tier: "standard" as PlanTier,
     name: "Standard",
     price: 10,
-    priceEnvKey: "STRIPE_PRICE_STANDARD",
-    description: "For growing farms",
+    priceEnvKey:
+      "STRIPE_PRICE_STANDARD",
+    description:
+      "For growing farms",
     color: "blue",
     popular: true,
     features: [
@@ -38,12 +62,15 @@ export const PLANS = [
       "Up to 10 users",
     ],
   },
+
   {
     tier: "pro" as PlanTier,
     name: "Pro",
     price: 20,
-    priceEnvKey: "STRIPE_PRICE_PRO",
-    description: "Full power for large operations",
+    priceEnvKey:
+      "STRIPE_PRICE_PRO",
+    description:
+      "Full power for large operations",
     color: "purple",
     features: [
       "Everything in Standard",
@@ -55,121 +82,244 @@ export const PLANS = [
   },
 ] as const;
 
-// ---------- Feature Access ----------
+// ============================================================
+// ACCESS
+// ============================================================
 
-const TIER_RANK: Record<PlanTier, number> = { basic: 1, standard: 2, pro: 3 };
+const TIER_RANK: Record<
+  PlanTier,
+  number
+> = {
+  basic: 1,
+  standard: 2,
+  pro: 3,
+};
 
-const ACTIVE_STATUSES: SubscriptionStatus[] = ["active", "trialing"];
-
-/**
- * Returns true if the subscription permits access to a given minimum plan tier.
- * The owner role is always exempt.
- */
-export function canAccessPlan(
-  user: AppUser | null | undefined,
-  requiredTier: PlanTier
-): boolean {
-  if (!user) return false;
-  // Owner is always exempt from subscription requirements
-  if (user.role === "owner") return true;
-
-  const sub = user.subscription;
-  if (!sub) return false;
-  if (!ACTIVE_STATUSES.includes(sub.status)) return false;
-
-  return TIER_RANK[sub.planTier] >= TIER_RANK[requiredTier];
-}
+const ACTIVE_STATUSES:
+  SubscriptionStatus[] = [
+    "active",
+    "trialing",
+  ];
 
 /**
- * Checks tenant-level subscription access for a given minimum plan tier.
- * Used with the new multi-tenant model where subscription lives on the tenant doc,
- * not the user doc.
+ * Tenant subscription is authoritative.
  */
 export function canAccessTenantPlan(
-  subscription: TenantSubscription | null | undefined,
+  subscription:
+    | TenantSubscription
+    | null
+    | undefined,
   requiredTier: PlanTier
 ): boolean {
-  if (!subscription) return false;
-  if (!ACTIVE_STATUSES.includes(subscription.status)) return false;
-  return TIER_RANK[subscription.planTier] >= TIER_RANK[requiredTier];
+  if (!subscription) {
+    return false;
+  }
+
+  if (
+    !ACTIVE_STATUSES.includes(
+      subscription.status
+    )
+  ) {
+    return false;
+  }
+
+  return (
+    TIER_RANK[
+      subscription.planTier
+    ] >=
+    TIER_RANK[requiredTier]
+  );
 }
 
 /**
- * Returns whether a subscription is currently active/trialing.
+ * Backward-compatible helper.
+ *
+ * IMPORTANT:
+ * New tenant pages should NOT use this.
+ *
+ * Subscription access belongs to the tenant.
  */
-export function isSubscriptionActive(sub: Subscription | undefined): boolean {
-  if (!sub) return false;
-  return ACTIVE_STATUSES.includes(sub.status);
+export function canAccessPlan(
+  _user: unknown,
+  _requiredTier: PlanTier
+): boolean {
+  console.warn(
+    "canAccessPlan(user, tier) is deprecated. Use useTenant().canAccess(tier)."
+  );
+
+  return false;
 }
 
-/**
- * Returns a human-readable label for a subscription status.
- */
-export function getStatusLabel(status: SubscriptionStatus): string {
-  const labels: Record<SubscriptionStatus, string> = {
+// ============================================================
+// STATUS
+// ============================================================
+
+export function isTenantSubscriptionActive(
+  subscription:
+    | TenantSubscription
+    | null
+    | undefined
+): boolean {
+  if (!subscription) {
+    return false;
+  }
+
+  return ACTIVE_STATUSES.includes(
+    subscription.status
+  );
+}
+
+export function isSubscriptionActive(
+  subscription:
+    | Subscription
+    | undefined
+): boolean {
+  if (!subscription) {
+    return false;
+  }
+
+  return ACTIVE_STATUSES.includes(
+    subscription.status
+  );
+}
+
+export function getStatusLabel(
+  status: SubscriptionStatus
+): string {
+  const labels: Record<
+    SubscriptionStatus,
+    string
+  > = {
     active: "Active",
     trialing: "Trial",
-    past_due: "Payment Overdue",
+    past_due:
+      "Payment Overdue",
     canceled: "Canceled",
     none: "No Subscription",
   };
+
   return labels[status] ?? status;
 }
 
-/**
- * Returns the Stripe Price ID for a given tier from env vars.
- * Only safe to call server-side.
- */
-export function getStripePriceId(tier: PlanTier): string {
-  const map: Record<PlanTier, string | undefined> = {
-    basic: process.env.STRIPE_PRICE_BASIC,
-    standard: process.env.STRIPE_PRICE_STANDARD,
-    pro: process.env.STRIPE_PRICE_PRO,
+// ============================================================
+// STRIPE PRICE IDS
+// ============================================================
+
+export function getStripePriceId(
+  tier: PlanTier
+): string {
+  const map: Record<
+    PlanTier,
+    string | undefined
+  > = {
+    basic:
+      process.env
+        .STRIPE_PRICE_BASIC,
+
+    standard:
+      process.env
+        .STRIPE_PRICE_STANDARD,
+
+    pro:
+      process.env
+        .STRIPE_PRICE_PRO,
   };
-  const id = map[tier];
-  if (!id) throw new Error(`Missing env var for plan tier: ${tier}`);
-  return id;
+
+  const priceId =
+    map[tier];
+
+  if (!priceId) {
+    throw new Error(
+      `Missing Stripe price ID for plan: ${tier}`
+    );
+  }
+
+  return priceId;
 }
 
-// ---------- Tenant Subscription Management ----------
+// ============================================================
+// TENANT SUBSCRIPTION
+// ============================================================
 
-/**
- * Looks up a tenant document by its Stripe customer ID.
- * Returns the TenantDoc if found, or null if no match exists.
- */
 export async function getTenantByStripeCustomerId(
   stripeCustomerId: string
 ): Promise<TenantDoc | null> {
   const q = query(
     collection(db, "tenants"),
-    where("subscription.stripeCustomerId", "==", stripeCustomerId)
+    where(
+      "subscription.stripeCustomerId",
+      "==",
+      stripeCustomerId
+    )
   );
-  const snapshot = await getDocs(q);
-  if (snapshot.empty) return null;
-  const docSnap = snapshot.docs[0];
-  return { id: docSnap.id, ...docSnap.data() } as TenantDoc;
+
+  const snapshot =
+    await getDocs(q);
+
+  if (snapshot.empty) {
+    return null;
+  }
+
+  const snap =
+    snapshot.docs[0];
+
+  return {
+    id: snap.id,
+    ...snap.data(),
+  } as TenantDoc;
 }
 
-/**
- * Updates the subscription field on a tenant document.
- * Uses updateDoc (non-destructive merge at the field level).
- */
 export async function updateTenantSubscription(
   tenantId: string,
   subscription: TenantSubscription
 ): Promise<void> {
-  const tenantRef = doc(db, "tenants", tenantId);
-  await updateDoc(tenantRef, { subscription });
+  await updateDoc(
+    doc(
+      db,
+      "tenants",
+      tenantId
+    ),
+    {
+      subscription,
+    }
+  );
 }
 
-/**
- * Returns the plan tier for a given tenant.
- * Defaults to 'basic' if the tenant has no subscription yet.
- */
-export async function getTenantPlanTier(tenantId: string): Promise<PlanTier> {
-  const tenantRef = doc(db, "tenants", tenantId);
-  const snapshot = await getDoc(tenantRef);
-  if (!snapshot.exists()) return "basic";
-  const data = snapshot.data() as Partial<TenantDoc>;
-  return data.subscription?.planTier ?? "basic";
+export async function getTenantSubscription(
+  tenantId: string
+): Promise<TenantSubscription | null> {
+  const snap =
+    await getDoc(
+      doc(
+        db,
+        "tenants",
+        tenantId
+      )
+    );
+
+  if (!snap.exists()) {
+    return null;
+  }
+
+  const tenant =
+    snap.data() as TenantDoc;
+
+  return (
+    tenant.subscription ??
+    null
+  );
+}
+
+export async function getTenantPlanTier(
+  tenantId: string
+): Promise<PlanTier> {
+  const subscription =
+    await getTenantSubscription(
+      tenantId
+    );
+
+  return (
+    subscription?.planTier ??
+    "basic"
+  );
 }

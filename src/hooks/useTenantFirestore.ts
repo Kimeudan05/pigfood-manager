@@ -1,33 +1,55 @@
-// ============================================
-// useTenantFirestore Hook
-// ============================================
-// Pulls `tenantId` from TenantContext and returns pre-bound helpers so
-// callsites never need to pass `tenantId` explicitly.
-//
-// The hook is intentionally minimal at this stage. Tenant-scoped service
-// functions (customers, sales, products, receivals, etc.) will be bound
-// here as they are refactored in Tasks 6.x.
+"use client";
 
-import { collectionRef } from "@/contexts/TenantContext";
 import { useTenant } from "@/contexts/TenantContext";
-import type { CollectionReference } from "firebase/firestore";
+import {
+  tenantCollection,
+  tenantDoc,
+  tenantSaleRef,
+  tenantSaleLinesCollection,
+} from "@/lib/firestore";
 
 export function useTenantFirestore() {
-  const { tenantId } = useTenant();
-
-  /**
-   * Returns a CollectionReference scoped to this tenant.
-   * Path: `tenants/{tenantId}/{name}`
-   *
-   * Example:
-   *   const salesRef = getCollectionRef("sales");
-   */
-  function getCollectionRef(name: string): CollectionReference {
-    return collectionRef(tenantId, name);
-  }
+  const { tenantId, tenantSlug } = useTenant();
 
   return {
     tenantId,
-    getCollectionRef,
+    tenantSlug,
+
+    /**
+     * tenants/{tenantId}/{collection}
+     */
+    getCollectionRef: (name: string) =>
+      tenantCollection(tenantId, name),
+
+    /**
+     * tenants/{tenantId}/{collection}/{id}
+     */
+    getDocRef: (
+      collectionName: string,
+      id: string
+    ) =>
+      tenantDoc(
+        tenantId,
+        collectionName,
+        id
+      ),
+
+    /**
+     * tenants/{tenantId}/sales/{saleId}
+     */
+    getSaleRef: (saleId: string) =>
+      tenantSaleRef(
+        tenantId,
+        saleId
+      ),
+
+    /**
+     * tenants/{tenantId}/sales/{saleId}/saleLines
+     */
+    getSaleLinesRef: (saleId: string) =>
+      tenantSaleLinesCollection(
+        tenantId,
+        saleId
+      ),
   };
 }

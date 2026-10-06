@@ -1,253 +1,416 @@
 // ============================================
-// Invitation Service
-// ============================================
-// Handles invite creation, lookup, acceptance, and deletion.
-// Invitations are stored in a top-level `invitations/{inviteId}` collection
-// for easy lookup by ID. The `tenantId` field in each doc ties it back to
-// the correct tenant sub-collection.
+// Multi-Tenant Invitation Service
 // ============================================
 
 import {
-  serverTimestamp,
-  Timestamp,
   addDoc,
-  setDoc,
-  getDoc,
-  getDocs,
+  collection,
   deleteDoc,
   doc,
-  collection,
+  getDoc,
+  getDocs,
   query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
   where,
   writeBatch,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Invitation, UserRole, TenantMember, TenantDoc } from "@/types";
 
-// ---------- Plan member limits ----------
-// Based on Requirement 6.8: basic ≤ 3, standard ≤ 10, pro = unlimited
+import { db } from "@/lib/firebase";
+
+import type {
+  Invitation,
+  TenantDoc,
+  TenantMember,
+  UserRole,
+} from "@/types";
+
+// ============================================================
+// PLAN LIMITS
+// ============================================================
+
 const PLAN_MEMBER_LIMITS: Record<string, number> = {
   basic: 3,
   standard: 10,
   pro: Infinity,
 };
 
-// ---------- Helpers ----------
+// ============================================================
+// HELPERS
+// ============================================================
 
-/**
- * Returns the number of approved members in a tenant.
- */
-async function countApprovedMembers(tenantId: string): Promise<number> {
-  const membersRef = collection(db, "tenants", tenantId, "users");
-  const q = query(membersRef, where("status", "==", "approved"));
+function invitationsCollection(
+  tenantId: string
+) {
+  return collection(
+    db,
+    "tenants",
+    tenantId,
+    "invitations"
+  );
+}
+
+function invitationDoc(
+  tenantId: string,
+  inviteId: string
+) {
+  return doc(
+    db,
+    "tenants",
+    tenantId,
+    "invitations",
+    inviteId
+  );
+}
+
+async function countApprovedMembers(
+  tenantId: string
+): Promise<number> {
+  const membersRef = collection(
+    db,
+    "tenants",
+    tenantId,
+    "users"
+  );
+
+  const q = query(
+    membersRef,
+    where("status", "==", "approved")
+  );
+
   const snap = await getDocs(q);
+
   return snap.size;
 }
 
-/**
- * Resolves the plan tier for a tenant by reading its subscription field.
- * Defaults to "basic" if no subscription is present.
- */
-async function getTenantPlanTier(tenantId: string): Promise<string> {
-  const tenantRef = doc(db, "tenants", tenantId);
-  const tenantSnap = await getDoc(tenantRef);
-  if (!tenantSnap.exists()) return "basic";
-  const data = tenantSnap.data() as TenantDoc;
-  return data.subscription?.planTier ?? "basic";
+async function getTenantPlanTier(
+  tenantId: string
+): Promise<string> {
+  const snap = await getDoc(
+    doc(db, "tenants", tenantId)
+  );
+
+  if (!snap.exists()) {
+    return "basic";
+  }
+
+  const tenant =
+    snap.data() as TenantDoc;
+
+  return (
+    tenant.subscription?.planTier ??
+    "basic"
+  );
 }
 
-// ============================================
-// createInvitation
-// ============================================
+// ============================================================
+// CREATE
+// ============================================================
 
-/**
- * Creates (or overwrites) an invitation for a given email address within a tenant.
- *
- * - If an unexpired invitation already exists for this email in the tenant,
- *   it is overwritten in-place (same doc ID) with a fresh 48 h expiry.
- * - Otherwise a new document is created via `addDoc`.
- *
- * Invitations are stored in the top-level `invitations` collection so they can
- * be loaded by ID alone (e.g. from an invite link) without knowing `tenantId`.
- *
- * @returns The inviteId of the created/updated invitation document.
- */
 export async function createInvitation(
   tenantId: string,
   email: string,
   role: UserRole,
   inviterUid: string
 ): Promise<string> {
+  const normalizedEmail =
+    email.trim().toLowerCase();
+
   const now = Timestamp.now();
-  const expiresAt = Timestamp.fromMillis(now.toMillis() + 48 * 60 * 60 * 1000);
 
-  const invitationData = {
-    email,
-    role,
-    invitedBy: inviterUid,
-    expiresAt,
-    tenantId,
-  };
+  const expiresAt =
+    Timestamp.fromMillis(
+      now.toMillis() +
+        48 * 60 * 60 * 1000
+    );
 
-  // Check for an existing unexpired invite for this email in this tenant.
-  const invitationsRef = collection(db, "invitations");
+  const invitationsRef =
+    invitationsCollection(tenantId);
+
+  // Look for an existing invitation for
+  // the same tenant + email.
   const q = query(
     invitationsRef,
-    where("tenantId", "==", tenantId),
-    where("email", "==", email)
+    where(
+      "email",
+      "==",
+      normalizedEmail
+    )
   );
-  const existing = await getDocs(q);
 
-  // Find any unexpired document
-  let existingDocId: string | null = null;
-  existing.forEach((snap) => {
-    const data = snap.data();
-    const expires = data.expiresAt as Timestamp;
-    if (expires && expires.toMillis() > now.toMillis()) {
-      existingDocId = snap.id;
+  const existing =
+    await getDocs(q);
+
+  for (const existingDoc of existing.docs) {
+    const existingData =
+      existingDoc.data();
+
+    const existingExpiry =
+      existingData.expiresAt as
+        | Timestamp
+        | undefined;
+
+    if (
+      existingExpiry &&
+      existingExpiry.toMillis() >
+        now.toMillis()
+    ) {
+      await setDoc(existingDoc.ref, {
+  email: normalizedEmail,
+  role,
+  invitedBy: inviterUid,
+  expiresAt,
+  updatedAt: serverTimestamp(),
+});
+
+      return existingDoc.id;
     }
-  });
-
-  if (existingDocId) {
-    // Overwrite in-place with a new expiry (same ID)
-    await setDoc(doc(db, "invitations", existingDocId), invitationData);
-    return existingDocId;
   }
 
-  // Create a fresh document
-  const newDoc = await addDoc(invitationsRef, invitationData);
-  return newDoc.id;
+  const inviteRef = await addDoc(
+    invitationsRef,
+    {
+      email: normalizedEmail,
+      role,
+      invitedBy: inviterUid,
+      expiresAt,
+      createdAt: serverTimestamp(),
+    }
+  );
+
+  return inviteRef.id;
 }
 
-// ============================================
-// getInvitation
-// ============================================
+// ============================================================
+// GET
+// ============================================================
 
-/**
- * Reads an invitation document from the top-level `invitations` collection by ID.
- * Returns null if the document does not exist.
- */
-export async function getInvitation(inviteId: string): Promise<Invitation | null> {
-  const inviteRef = doc(db, "invitations", inviteId);
-  const snap = await getDoc(inviteRef);
+export async function getInvitation(
+  tenantId: string,
+  inviteId: string
+): Promise<Invitation | null> {
+  const snap = await getDoc(
+    invitationDoc(
+      tenantId,
+      inviteId
+    )
+  );
 
-  if (!snap.exists()) return null;
+  if (!snap.exists()) {
+    return null;
+  }
 
   const data = snap.data();
+
   return {
     id: snap.id,
     email: data.email,
     role: data.role as UserRole,
     invitedBy: data.invitedBy,
-    expiresAt: data.expiresAt as Timestamp,
-    tenantId: data.tenantId,
-    tenantSlug: data.tenantSlug ?? "",
-  } satisfies Invitation;
+    expiresAt:
+      data.expiresAt as Timestamp,
+    tenantId,
+    tenantSlug:
+      data.tenantSlug ?? "",
+  };
 }
 
-// ============================================
-// acceptInvitation
-// ============================================
+// ============================================================
+// ACCEPT
+// ============================================================
 
-/**
- * Accepts an invitation and adds the user as a member of the tenant.
- *
- * Checks:
- * 1. Invitation exists and has not expired — throws `{ code: 'EXPIRED' }` if expired.
- * 2. Tenant is not at its plan member limit — throws `{ code: 'MEMBER_LIMIT_REACHED' }` if at limit.
- *
- * Uses a batch write to:
- * - Add the user to `tenants/{tenantId}/users/{uid}` with status `approved`.
- * - Ensure a global `users/{uid}` profile doc exists (merge: true).
- * - Delete `invitations/{inviteId}`.
- *
- * @returns `{ tenantId, tenantSlug }` for post-acceptance redirect.
- */
 export async function acceptInvitation(
+  tenantId: string,
   inviteId: string,
   uid: string,
   email: string,
   displayName: string
-): Promise<{ tenantId: string; tenantSlug: string }> {
-  // 1. Load the invitation
-  const inviteRef = doc(db, "invitations", inviteId);
-  const inviteSnap = await getDoc(inviteRef);
+): Promise<{
+  tenantId: string;
+  tenantSlug: string;
+}> {
+  const inviteRef =
+    invitationDoc(
+      tenantId,
+      inviteId
+    );
+
+  const inviteSnap =
+    await getDoc(inviteRef);
 
   if (!inviteSnap.exists()) {
-    throw { code: "EXPIRED" };
+    throw {
+      code: "EXPIRED",
+    };
   }
 
-  const inviteData = inviteSnap.data();
-  const expiresAt = inviteData.expiresAt as Timestamp;
-  const now = Timestamp.now();
+  const inviteData =
+    inviteSnap.data();
 
-  if (expiresAt.toMillis() <= now.toMillis()) {
-    throw { code: "EXPIRED" };
+  const expiresAt =
+    inviteData.expiresAt as Timestamp;
+
+  if (
+    expiresAt.toMillis() <=
+    Date.now()
+  ) {
+    throw {
+      code: "EXPIRED",
+    };
   }
 
-  const { tenantId, role } = inviteData as { tenantId: string; role: UserRole };
+  const role =
+    inviteData.role as UserRole;
 
-  // 2. Check plan member limit
-  const [approvedCount, planTier] = await Promise.all([
-    countApprovedMembers(tenantId),
-    getTenantPlanTier(tenantId),
+  // Check member limit.
+  const [
+    approvedCount,
+    planTier,
+  ] = await Promise.all([
+    countApprovedMembers(
+      tenantId
+    ),
+    getTenantPlanTier(
+      tenantId
+    ),
   ]);
 
-  const limit = PLAN_MEMBER_LIMITS[planTier] ?? 3;
+  const limit =
+    PLAN_MEMBER_LIMITS[
+      planTier
+    ] ?? 3;
+
   if (approvedCount >= limit) {
-    throw { code: "MEMBER_LIMIT_REACHED" };
+    throw {
+      code: "MEMBER_LIMIT_REACHED",
+    };
   }
 
-  // 3. Batch write: add member doc + ensure global profile + delete invite
-  const batch = writeBatch(db);
+  const tenantRef = doc(
+    db,
+    "tenants",
+    tenantId
+  );
 
-  // Add to tenant members sub-collection
-  const memberRef = doc(db, "tenants", tenantId, "users", uid);
-  const memberData: Omit<TenantMember, "permissions" | "adminMessage" | "adminNote"> = {
+  const tenantSnap =
+    await getDoc(tenantRef);
+
+  if (!tenantSnap.exists()) {
+    throw {
+      code: "TENANT_NOT_FOUND",
+    };
+  }
+
+  const tenant =
+    tenantSnap.data() as TenantDoc;
+
+  const memberRef = doc(
+    db,
+    "tenants",
+    tenantId,
+    "users",
+    uid
+  );
+
+  const globalUserRef =
+    doc(db, "users", uid);
+
+  const batch =
+    writeBatch(db);
+
+  const memberData: Omit<
+    TenantMember,
+    | "permissions"
+    | "adminMessage"
+    | "adminNote"
+  > = {
     uid,
     email,
     displayName,
     photoURL: "",
     role,
     status: "approved",
-    createdAt: serverTimestamp() as unknown as Timestamp,
+    createdAt:
+      serverTimestamp() as unknown as Timestamp,
   };
-  batch.set(memberRef, memberData);
 
-  // Ensure global users/{uid} profile exists (merge so existing fields are kept)
-  const globalProfileRef = doc(db, "users", uid);
   batch.set(
-    globalProfileRef,
+    memberRef,
+    memberData,
+    {
+      merge: true,
+    }
+  );
+
+  // Global profile.
+  batch.set(
+    globalUserRef,
     {
       uid,
       email,
       displayName,
       photoURL: "",
     },
-    { merge: true }
+    {
+      merge: true,
+    }
   );
 
-  // Delete the invitation
+  // Invitation belongs to this tenant.
   batch.delete(inviteRef);
 
   await batch.commit();
 
-  // 4. Load the tenant doc to get the slug
-  const tenantRef = doc(db, "tenants", tenantId);
-  const tenantSnap = await getDoc(tenantRef);
-  const tenantSlug: string =
-    tenantSnap.exists() ? (tenantSnap.data() as TenantDoc).slug : "";
-
-  return { tenantId, tenantSlug };
+  return {
+    tenantId,
+    tenantSlug:
+      tenant.slug,
+  };
 }
 
-// ============================================
-// deleteInvitation
-// ============================================
+// ============================================================
+// DELETE
+// ============================================================
 
-/**
- * Deletes an invitation document from the top-level `invitations` collection.
- */
-export async function deleteInvitation(inviteId: string): Promise<void> {
-  await deleteDoc(doc(db, "invitations", inviteId));
+export async function deleteInvitation(
+  tenantId: string,
+  inviteId: string
+): Promise<void> {
+  await deleteDoc(
+    invitationDoc(
+      tenantId,
+      inviteId
+    )
+  );
+}
+
+// ============================================================
+// LIST TENANT INVITATIONS
+// ============================================================
+
+export async function getTenantInvitations(
+  tenantId: string
+): Promise<Invitation[]> {
+  const snap = await getDocs(
+    invitationsCollection(
+      tenantId
+    )
+  );
+
+  return snap.docs.map((d) => {
+    const data = d.data();
+
+    return {
+      id: d.id,
+      email: data.email,
+      role: data.role as UserRole,
+      invitedBy: data.invitedBy,
+      expiresAt:
+        data.expiresAt as Timestamp,
+      tenantId,
+      tenantSlug:
+        data.tenantSlug ?? "",
+    };
+  });
 }
