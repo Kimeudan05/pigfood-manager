@@ -21,7 +21,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { Customer, CustomerFormData, Sale, SaleFormData, SaleItems, SaleTotals } from "@/types";
-import { calculateTotals, generateSaleNumber } from "@/utils/pricing";
+import { calculateTotals, generateSaleNumberLegacy } from "@/utils/pricing";
 
 // ---------- Customer Operations ----------
 
@@ -100,7 +100,7 @@ export async function addSale(data: SaleFormData, userId: string): Promise<strin
   };
 
   const totals: SaleTotals = calculateTotals(items);
-  const saleNumber = generateSaleNumber();
+  const saleNumber = generateSaleNumberLegacy();
 
   const docRef = await addDoc(salesRef, {
     saleNumber,
@@ -443,3 +443,388 @@ export async function getSessionsSince(timestamp: number): Promise<import("@/typ
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as import("@/types").UserSession));
 }
 
+
+// ============================================
+// Tenant-Scoped Service Layer (Multi-Tenant)
+// ============================================
+// All functions below accept `tenantId` as first parameter and use the path
+// `tenants/{tenantId}/{collection}` instead of root-level collection refs.
+// Existing root-collection functions above are kept for backward compatibility
+// during the migration period and are marked @deprecated.
+
+import { TenantMember, WeeklyNote, Receival, ReceivalFormData } from "@/types";
+
+// ---------- Tenant-Scoped Customer Functions ----------
+
+/**
+ * Add a new customer scoped to the given tenant.
+ * _Requirements: 3.1_
+ */
+export async function addCustomerT(
+  tenantId: string,
+  data: CustomerFormData,
+  userId: string
+): Promise<string> {
+  const ref = collection(db, "tenants", tenantId, "customers");
+  const docRef = await addDoc(ref, {
+    ...data,
+    createdBy: userId,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+/**
+ * Update an existing customer in the tenant scope.
+ * _Requirements: 3.1_
+ */
+export async function updateCustomerT(
+  tenantId: string,
+  id: string,
+  data: Partial<CustomerFormData>
+): Promise<void> {
+  const docRef = doc(db, "tenants", tenantId, "customers", id);
+  await updateDoc(docRef, { ...data });
+}
+
+/**
+ * Delete a customer from the tenant scope.
+ * _Requirements: 3.1_
+ */
+export async function deleteCustomerT(
+  tenantId: string,
+  id: string
+): Promise<void> {
+  const docRef = doc(db, "tenants", tenantId, "customers", id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Get a single customer by ID within the tenant scope.
+ * _Requirements: 3.1_
+ */
+export async function getCustomerT(
+  tenantId: string,
+  id: string
+): Promise<Customer | null> {
+  const docRef = doc(db, "tenants", tenantId, "customers", id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as Customer;
+}
+
+/**
+ * Get all customers for the given tenant.
+ * _Requirements: 3.1_
+ */
+export async function getAllCustomersT(
+  tenantId: string
+): Promise<Customer[]> {
+  const ref = collection(db, "tenants", tenantId, "customers");
+  const q = query(ref, orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Customer));
+}
+
+/**
+ * Search customers by name, phone, or location within the tenant scope.
+ * _Requirements: 3.1_
+ */
+export async function searchCustomersT(
+  tenantId: string,
+  searchTerm: string
+): Promise<Customer[]> {
+  const all = await getAllCustomersT(tenantId);
+  const term = searchTerm.toLowerCase();
+  return all.filter(
+    (c) =>
+      c.fullName.toLowerCase().includes(term) ||
+      c.phone.includes(term) ||
+      c.location.toLowerCase().includes(term)
+  );
+}
+
+// ---------- Tenant-Scoped Sale Functions ----------
+
+/**
+ * Get all sales for the given tenant ordered by date (header only).
+ * Note: full two-level model with saleLines is implemented in task 6.4.
+ * _Requirements: 3.1_
+ */
+export async function getAllSalesT(tenantId: string): Promise<Sale[]> {
+  const ref = collection(db, "tenants", tenantId, "sales");
+  const q = query(ref, orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Sale));
+}
+
+/**
+ * Delete a sale from the tenant scope.
+ * Note: deletion of saleLines sub-collection will be handled in task 6.4.
+ * _Requirements: 3.1_
+ */
+export async function deleteSaleT(
+  tenantId: string,
+  id: string
+): Promise<void> {
+  const docRef = doc(db, "tenants", tenantId, "sales", id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Get sales within a date range for the given tenant.
+ * _Requirements: 3.1_
+ */
+export async function getSalesByDateRangeT(
+  tenantId: string,
+  start: Date,
+  end: Date
+): Promise<Sale[]> {
+  const ref = collection(db, "tenants", tenantId, "sales");
+  const q = query(
+    ref,
+    where("createdAt", ">=", Timestamp.fromDate(start)),
+    where("createdAt", "<=", Timestamp.fromDate(end)),
+    orderBy("createdAt", "desc")
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Sale));
+}
+
+/**
+ * Get recent sales (limited) for the given tenant.
+ * _Requirements: 3.1_
+ */
+export async function getRecentSalesT(
+  tenantId: string,
+  count: number = 10
+): Promise<Sale[]> {
+  const ref = collection(db, "tenants", tenantId, "sales");
+  const q = query(ref, orderBy("createdAt", "desc"), limit(count));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Sale));
+}
+
+/**
+ * Get sales for a specific customer within the tenant scope.
+ * _Requirements: 3.1_
+ */
+export async function getCustomerSalesT(
+  tenantId: string,
+  customerId: string
+): Promise<Sale[]> {
+  const ref = collection(db, "tenants", tenantId, "sales");
+  const q = query(
+    ref,
+    where("customerId", "==", customerId),
+    orderBy("createdAt", "desc")
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Sale));
+}
+
+// ---------- Tenant-Scoped Receival Functions ----------
+
+/**
+ * Add a new receival scoped to the given tenant.
+ * _Requirements: 3.1_
+ */
+export async function addReceivalT(
+  tenantId: string,
+  data: ReceivalFormData,
+  userId: string
+): Promise<string> {
+  const ref = collection(db, "tenants", tenantId, "receivals");
+  const docRef = await addDoc(ref, {
+    ...data,
+    createdBy: userId,
+    createdAt: data.date ? Timestamp.fromDate(new Date(data.date)) : serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+/**
+ * Update an existing receival in the tenant scope.
+ * _Requirements: 3.1_
+ */
+export async function updateReceivalT(
+  tenantId: string,
+  id: string,
+  data: Partial<ReceivalFormData>
+): Promise<void> {
+  const docRef = doc(db, "tenants", tenantId, "receivals", id);
+  const updateData: Record<string, unknown> = { ...data };
+  if (data.date) {
+    updateData.createdAt = Timestamp.fromDate(new Date(data.date));
+  }
+  await updateDoc(docRef, updateData);
+}
+
+/**
+ * Delete a receival from the tenant scope.
+ * _Requirements: 3.1_
+ */
+export async function deleteReceivalT(
+  tenantId: string,
+  id: string
+): Promise<void> {
+  const docRef = doc(db, "tenants", tenantId, "receivals", id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Get a single receival by ID within the tenant scope.
+ * _Requirements: 3.1_
+ */
+export async function getReceivalT(
+  tenantId: string,
+  id: string
+): Promise<Receival | null> {
+  const docRef = doc(db, "tenants", tenantId, "receivals", id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as Receival;
+}
+
+/**
+ * Get all receivals for the given tenant.
+ * _Requirements: 3.1_
+ */
+export async function getAllReceivalsT(tenantId: string): Promise<Receival[]> {
+  const ref = collection(db, "tenants", tenantId, "receivals");
+  const q = query(ref, orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Receival));
+}
+
+/**
+ * Get receivals within a date range for the given tenant.
+ * _Requirements: 3.1_
+ */
+export async function getReceivalsByDateRangeT(
+  tenantId: string,
+  start: Date,
+  end: Date
+): Promise<Receival[]> {
+  const ref = collection(db, "tenants", tenantId, "receivals");
+  const q = query(
+    ref,
+    where("createdAt", ">=", Timestamp.fromDate(start)),
+    where("createdAt", "<=", Timestamp.fromDate(end)),
+    orderBy("createdAt", "desc")
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Receival));
+}
+
+/**
+ * Get receivals for a specific date string (YYYY-MM-DD) within the tenant scope.
+ * _Requirements: 3.1_
+ */
+export async function getReceivalsByDateStrT(
+  tenantId: string,
+  dateStr: string
+): Promise<Receival[]> {
+  const ref = collection(db, "tenants", tenantId, "receivals");
+  const q = query(ref, where("date", "==", dateStr));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Receival));
+}
+
+/**
+ * Get unique truck numbers used in receivals for the given tenant.
+ * _Requirements: 3.1_
+ */
+export async function getUniqueTruckNumbersT(tenantId: string): Promise<string[]> {
+  const all = await getAllReceivalsT(tenantId);
+  const set = new Set<string>();
+  all.forEach((r) => {
+    if (r.truckNumber && r.truckNumber.trim() !== "") {
+      set.add(r.truckNumber.trim().toUpperCase());
+    }
+  });
+  return Array.from(set).sort();
+}
+
+// ---------- Tenant-Scoped Weekly Notes Functions ----------
+
+/**
+ * Save or update a note for a specific week within the tenant scope.
+ * _Requirements: 3.1_
+ */
+export async function saveWeeklyNoteT(
+  tenantId: string,
+  weekKey: string,
+  note: string,
+  userId: string
+): Promise<void> {
+  const docRef = doc(db, "tenants", tenantId, "weeklyNotes", weekKey);
+  await setDoc(docRef, {
+    note,
+    createdBy: userId,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Get all weekly notes for the given tenant.
+ * _Requirements: 3.1_
+ */
+export async function getWeeklyNotesT(tenantId: string): Promise<WeeklyNote[]> {
+  const ref = collection(db, "tenants", tenantId, "weeklyNotes");
+  const q = query(ref);
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as WeeklyNote));
+}
+
+/**
+ * Delete a weekly note for the given tenant.
+ * _Requirements: 3.1_
+ */
+export async function deleteWeeklyNoteT(
+  tenantId: string,
+  weekKey: string
+): Promise<void> {
+  await deleteDoc(doc(db, "tenants", tenantId, "weeklyNotes", weekKey));
+}
+
+// ---------- Tenant-Scoped User / Member Functions ----------
+
+/**
+ * Get all members of the given tenant.
+ * _Requirements: 3.1, 6.1_
+ */
+export async function getTenantMembers(tenantId: string): Promise<TenantMember[]> {
+  const ref = collection(db, "tenants", tenantId, "users");
+  const q = query(ref, orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ uid: d.id, ...d.data() } as TenantMember));
+}
+
+/**
+ * Update fields on a tenant member document.
+ * _Requirements: 3.1, 6.1_
+ */
+export async function updateTenantMember(
+  tenantId: string,
+  uid: string,
+  data: Partial<TenantMember>
+): Promise<void> {
+  const docRef = doc(db, "tenants", tenantId, "users", uid);
+  await updateDoc(docRef, data as Record<string, unknown>);
+}
+
+/**
+ * Get a single tenant member by UID.
+ * Returns null if the user is not a member of the tenant.
+ * _Requirements: 3.1, 6.1_
+ */
+export async function getTenantMember(
+  tenantId: string,
+  uid: string
+): Promise<TenantMember | null> {
+  const docRef = doc(db, "tenants", tenantId, "users", uid);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { uid: snap.id, ...snap.data() } as TenantMember;
+}

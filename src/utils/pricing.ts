@@ -116,12 +116,56 @@ export function getEmptySaleItems(): SaleItems {
   };
 }
 
-/** Generate a unique sale number based on timestamp */
-export function generateSaleNumber(): string {
+/**
+ * @deprecated — use generateSaleNumber(tenantSlug) instead.
+ * Generate a unique sale number based on timestamp using the legacy "TK" prefix.
+ */
+export function generateSaleNumberLegacy(): string {
   const now = new Date();
   const year = now.getFullYear().toString().slice(-2);
   const month = (now.getMonth() + 1).toString().padStart(2, "0");
   const day = now.getDate().toString().padStart(2, "0");
   const random = Math.floor(Math.random() * 9000 + 1000);
   return `TK-${year}${month}${day}-${random}`;
+}
+
+/**
+ * Generate a unique sale number scoped to the given tenant.
+ *
+ * Pattern: `{TENANT_PREFIX}-{YYMMDD}-{4-digit-random}`
+ *
+ * - `TENANT_PREFIX` = first 4 characters of `tenantSlug` uppercased.
+ *   If the slug is shorter than 4 characters it is padded with 'X' on the
+ *   right to reach exactly 4 characters (e.g. "abc" → "ABCX").
+ * - `YYMMDD`        = 2-digit year + 2-digit month + 2-digit day (e.g. "250714").
+ * - `4-digit-random` = random integer in [1000, 9999].
+ *
+ * _Requirements: 5.10_
+ */
+export function generateSaleNumber(tenantSlug: string): string {
+  const raw = tenantSlug.slice(0, 4).toUpperCase();
+  const prefix = raw.padEnd(4, "X");
+
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2);
+  const month = (now.getMonth() + 1).toString().padStart(2, "0");
+  const day = now.getDate().toString().padStart(2, "0");
+
+  const random = Math.floor(Math.random() * 9000 + 1000);
+  return `${prefix}-${year}${month}${day}-${random}`;
+}
+
+/**
+ * Calculate the grand total for a sale from an array of line items.
+ * Result is rounded to 2 decimal places using banker-safe arithmetic.
+ *
+ * Formula: Math.round(sum(quantity_i × unitPrice_i) × 100) / 100
+ *
+ * _Requirements: 5.9, Property 10_
+ */
+export function calculateGrandTotal(
+  lines: Array<{ quantity: number; unitPrice: number }>
+): number {
+  const raw = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
+  return Math.round(raw * 100) / 100;
 }

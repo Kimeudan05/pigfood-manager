@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateTotals, getEmptySaleItems, generateSaleNumber, PRODUCTS } from "../pricing";
+import { calculateTotals, getEmptySaleItems, generateSaleNumber, generateSaleNumberLegacy, PRODUCTS } from "../pricing";
 import { SaleItems } from "@/types";
 
 describe("Pricing Utility", () => {
@@ -96,18 +96,58 @@ describe("Pricing Utility", () => {
     });
   });
 
-  describe("generateSaleNumber", () => {
+  describe("generateSaleNumberLegacy", () => {
     it("should generate a unique sale number in the TK-YYMMDD-RANDOM format", () => {
-      const saleNum = generateSaleNumber();
+      const saleNum = generateSaleNumberLegacy();
       expect(saleNum).toMatch(/^TK-\d{6}-\d{4}$/);
     });
 
     it("should generate unique values on subsequent calls", () => {
-      const saleNum1 = generateSaleNumber();
-      const saleNum2 = generateSaleNumber();
+      const saleNum1 = generateSaleNumberLegacy();
+      const saleNum2 = generateSaleNumberLegacy();
       // While there is a tiny probability of collision in random suffix,
       // it should almost never be equal.
       expect(saleNum1).not.toBe(saleNum2);
+    });
+  });
+
+  describe("generateSaleNumber (tenant-aware)", () => {
+    it("should use the first 4 chars of a long slug as the prefix (uppercased)", () => {
+      const result = generateSaleNumber("takataka");
+      expect(result).toMatch(/^TAKA-\d{6}-\d{4}$/);
+    });
+
+    it("should pad a 3-char slug to 4 chars with 'X'", () => {
+      const result = generateSaleNumber("abc");
+      expect(result).toMatch(/^ABCX-\d{6}-\d{4}$/);
+    });
+
+    it("should pad a 1-char slug to 4 chars with 'X'", () => {
+      const result = generateSaleNumber("a");
+      expect(result).toMatch(/^AXXX-\d{6}-\d{4}$/);
+    });
+
+    it("should truncate a slug longer than 4 chars to exactly 4", () => {
+      const result = generateSaleNumber("cityfarm");
+      expect(result).toMatch(/^CITY-\d{6}-\d{4}$/);
+    });
+
+    it("should include today's date in YYMMDD format", () => {
+      const now = new Date();
+      const yy = now.getFullYear().toString().slice(-2);
+      const mm = (now.getMonth() + 1).toString().padStart(2, "0");
+      const dd = now.getDate().toString().padStart(2, "0");
+      const dateSegment = `${yy}${mm}${dd}`;
+      const result = generateSaleNumber("takataka");
+      expect(result).toContain(`-${dateSegment}-`);
+    });
+
+    it("should have a 4-digit random suffix between 1000 and 9999", () => {
+      const result = generateSaleNumber("takataka");
+      const parts = result.split("-");
+      const random = parseInt(parts[2], 10);
+      expect(random).toBeGreaterThanOrEqual(1000);
+      expect(random).toBeLessThanOrEqual(9999);
     });
   });
 });

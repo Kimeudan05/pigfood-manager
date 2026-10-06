@@ -6,7 +6,7 @@
 // `canDo(appUser, 'granularPerm')` checks per-user Firestore overrides
 // with role defaults as fallback.
 
-import { UserRole, AppUser, GranularPermissions } from "@/types";
+import { UserRole, AppUser, GranularPermissions, TenantMember } from "@/types";
 
 // ---------- Legacy coarse permissions (kept for backward compat) ----------
 
@@ -150,6 +150,24 @@ export function canDo(
   }
   // Fall back to role default
   return GRANULAR_DEFAULTS[appUser.role]?.[perm] ?? false;
+}
+
+/**
+ * Check if a tenant member has a specific granular permission.
+ * Identical logic to `canDo` but typed for `TenantMember` to avoid caller casts.
+ * Per-member Firestore overrides take precedence over role defaults.
+ */
+export function canDoMember(
+  member: TenantMember | null | undefined,
+  perm: keyof GranularPermissions
+): boolean {
+  if (!member) return false;
+  // Check per-member override first
+  if (member.permissions && perm in member.permissions) {
+    return member.permissions[perm] ?? false;
+  }
+  // Fall back to role default
+  return GRANULAR_DEFAULTS[member.role]?.[perm] ?? false;
 }
 
 /** Human-readable role labels */

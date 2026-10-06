@@ -2,7 +2,9 @@
 // Billing Logic — Plan tiers, feature access
 // ============================================
 
-import { PlanTier, SubscriptionStatus, Subscription, AppUser } from "@/types";
+import { collection, query, where, getDocs, doc, updateDoc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { PlanTier, SubscriptionStatus, Subscription, AppUser, TenantSubscription, TenantDoc } from "@/types";
 
 // ---------- Plan Definitions ----------
 
@@ -79,6 +81,20 @@ export function canAccessPlan(
 }
 
 /**
+ * Checks tenant-level subscription access for a given minimum plan tier.
+ * Used with the new multi-tenant model where subscription lives on the tenant doc,
+ * not the user doc.
+ */
+export function canAccessTenantPlan(
+  subscription: TenantSubscription | null | undefined,
+  requiredTier: PlanTier
+): boolean {
+  if (!subscription) return false;
+  if (!ACTIVE_STATUSES.includes(subscription.status)) return false;
+  return TIER_RANK[subscription.planTier] >= TIER_RANK[requiredTier];
+}
+
+/**
  * Returns whether a subscription is currently active/trialing.
  */
 export function isSubscriptionActive(sub: Subscription | undefined): boolean {
@@ -113,4 +129,47 @@ export function getStripePriceId(tier: PlanTier): string {
   const id = map[tier];
   if (!id) throw new Error(`Missing env var for plan tier: ${tier}`);
   return id;
+}
+
+// ---------- Tenant Subscription Management ----------
+
+/**
+ * Looks up a tenant document by its Stripe customer ID.
+ * Returns the TenantDoc if found, or null if no match exists.
+ */
+export async function getTenantByStripeCustomerId(
+  stripeCustomerId: string
+): Promise<TenantDoc | null> {
+  const q = query(
+    collection(db, "tenants"),
+    where("subscription.stripeCustomerId", "==", stripeCustomerId)
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+  const docSnap = snapshot.docs[0];
+  return { id: docSnap.id, ...docSnap.data() } as TenantDoc;
+}
+
+/**
+ * Updates the subscription field on a tenant document.
+ * Uses updateDoc (non-destructive merge at the field level).
+ */
+export async function updateTenantSubscription(
+  tenantId: string,
+  subscription: TenantSubscription
+): Promise<void> {
+  const tenantRef = doc(db, "tenants", tenantId);
+  await updateDoc(tenantRef, { subscription });
+}
+
+/**
+ * Returns the plan tier for a given tenant.
+ * Defaults to 'basic' if the tenant has no subscription yet.
+ */
+export async function getTenantPlanTier(tenantId: string): Promise<PlanTier> {
+  const tenantRef = doc(db, "tenants", tenantId);
+  const snapshot = await getDoc(tenantRef);
+  if (!snapshot.exists()) return "basic";
+  const data = snapshot.data() as Partial<TenantDoc>;
+  return data.subscription?.planTier ?? "basic";
 }

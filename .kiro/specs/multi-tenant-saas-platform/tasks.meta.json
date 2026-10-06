@@ -1,0 +1,541 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Add fast-check as a dev dependency and verify Vitest can import it": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264321073
+      },
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264341758
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791268614525
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791268627253
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791269115095
+      }
+    ],
+    "2.1 Add multi-tenant type definitions": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264321576
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791269139344
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791269303315
+      }
+    ],
+    "3.1 Implement `validateSlug(slug: string): boolean`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264321832
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791269313783
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791270645737
+      }
+    ],
+    "3.3 Implement `validatePassword(password: string): boolean`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264322099
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791269319811
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791270654073
+      }
+    ],
+    "3.5 Implement `validateProduct(product: unknown): boolean`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264322340
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791269326687
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791270661611
+      }
+    ],
+    "3.7 Implement `validateLogoFile(mimeType: string, sizeBytes: number): boolean`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264322565
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791269334942
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791270666514
+      }
+    ],
+    "3.9 Implement `generateSaleNumber(tenantSlug: string): string`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264322815
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791269345071
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791270679622
+      }
+    ],
+    "3.11 Implement `calculateGrandTotal(lines: Array<{quantity: number; unitPrice: number}>): number`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264323066
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791270687305
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791271242663
+      }
+    ],
+    "3.13 Implement `computeNetWeight(weightIn: number, weightOut: number): number`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264323326
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791270692154
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791271249638
+      }
+    ],
+    "3.15 Update `canDo` and `canAccessPlan` for tenant-scoped context": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264323649
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791270703928
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791271254731
+      }
+    ],
+    "4. Checkpoint — run all tests": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264323859
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791271285004
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791271587405
+      }
+    ],
+    "5.1 Create `src/contexts/TenantContext.tsx`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264324042
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791271596455
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791271929038
+      }
+    ],
+    "5.3 Create `src/hooks/useTenantFirestore.ts`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264324264
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791271936387
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791272572615
+      }
+    ],
+    "6.1 Refactor `src/lib/firestore.ts` — add `tenantId` parameter to all functions": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264324463
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791272583974
+      }
+    ],
+    "6.2 Implement `src/lib/products.ts` — product catalog service": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264324646
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791272592321
+      }
+    ],
+    "6.4 Update sale service in `firestore.ts` for new two-level data model": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264324878
+      }
+    ],
+    "6.5 Implement `src/lib/tenantRegistration.ts`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264325121
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791272597755
+      }
+    ],
+    "6.6 Implement `src/lib/invitations.ts`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264325346
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791272609792
+      }
+    ],
+    "6.7 Update `src/lib/billing.ts` — tenant-level subscription": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264325737
+      },
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791272615555
+      }
+    ],
+    "7. Checkpoint — run all tests": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264325974
+      }
+    ],
+    "8.1 Create `src/app/[tenant_slug]/layout.tsx` — TenantContext provider": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264326186
+      }
+    ],
+    "8.2 Create `src/middleware.ts`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264326401
+      }
+    ],
+    "8.3 Update `next.config.ts` for new routing": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264326604
+      }
+    ],
+    "9.1 Create `src/app/page.tsx` — public landing page (replace current redirect)": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264326793
+      }
+    ],
+    "9.2 Create `src/app/register/page.tsx` — tenant registration form": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264326987
+      }
+    ],
+    "9.3 Create `src/app/workspace-picker/page.tsx`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264327171
+      }
+    ],
+    "9.4 Create `src/app/invite/[inviteId]/page.tsx` — invitation acceptance": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264327362
+      }
+    ],
+    "10.1 Scaffold `src/app/[tenant_slug]/(protected)/` directory structure": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264327579
+      }
+    ],
+    "10.2 Re-wire Dashboard page to `useTenantFirestore`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264327954
+      }
+    ],
+    "10.3 Re-wire Customers pages to `useTenantFirestore`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264328183
+      }
+    ],
+    "10.4 Re-wire Sales pages to new sale service and dynamic product catalog": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264328391
+      }
+    ],
+    "10.5 Re-wire Receivals pages to `useTenantFirestore` with plan gate": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264328593
+      }
+    ],
+    "10.6 Re-wire Reports pages to `useTenantFirestore` with plan gates": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264329071
+      }
+    ],
+    "10.7 Create Settings pages": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264329274
+      }
+    ],
+    "10.8 Create `settings/page.tsx` logo upload and branding": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264329486
+      }
+    ],
+    "10.9 Re-wire Admin page to tenant-scoped user management": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264329760
+      }
+    ],
+    "10.10 Update Sidebar navigation for new URL structure": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264329965
+      }
+    ],
+    "11. Checkpoint — run all tests and verify build": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264330152
+      }
+    ],
+    "12.1 Update `/api/billing/webhook/route.ts`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264330350
+      }
+    ],
+    "12.2 Update `/api/billing/create-checkout/route.ts`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264330540
+      }
+    ],
+    "12.3 Create `/api/invite/accept/route.ts`": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264330750
+      }
+    ],
+    "13.1 Write the full tenant-scoped security rules": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264330936
+      }
+    ],
+    "14.1 Create `scripts/migrate.ts` using Firebase Admin SDK": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264331150
+      }
+    ],
+    "15. Checkpoint — run all tests and confirm migration script runs cleanly": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264331361
+      }
+    ],
+    "16.1 Remove deprecated legacy Firestore function wrappers": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264331562
+      }
+    ],
+    "16.2 Remove `src/app/(protected)/` route group": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264331796
+      }
+    ],
+    "16.3 Update `AuthContext` to slim-down post-migration": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264332020
+      }
+    ],
+    "16.4 Add `src/lib/reservedSlugs.ts` and enforce in registration": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264332212
+      }
+    ],
+    "17. Final checkpoint — full test suite and production build": [
+      {
+        "executionId": "c7b4d18a-caba-4bd3-906e-e71e44989f66",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791264332405
+      }
+    ],
+    "1. Install fast-check and extend TypeScript / Vitest config": [
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791269115443
+      }
+    ],
+    "2. Extend core TypeScript types (`src/types/index.ts`)": [
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791269304332
+      }
+    ],
+    "3. Pure-function validators and utilities (`src/lib/validators.ts`, `src/utils/pricing.ts`)": [
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791271255250
+      }
+    ],
+    "5. TenantContext and `useTenantFirestore` hook": [
+      {
+        "executionId": "63e2564c-0d64-479f-8311-f546a31f46d2",
+        "chatSessionId": "sess_5b0649b1-a176-472d-883f-e3d9b9165744",
+        "timestamp": 1791272573911
+      }
+    ]
+  }
+}

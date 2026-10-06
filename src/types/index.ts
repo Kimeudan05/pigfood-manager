@@ -120,6 +120,7 @@ export interface Sale extends SaleItems, SaleTotals {
   customerName: string;
   createdBy: string;
   createdAt: Timestamp | Date;
+  lines?: SaleLine[];    // populated when loaded with sub-collection (new model)
 }
 
 export interface SaleFormData extends SaleItems {
@@ -292,5 +293,102 @@ export interface UserSession {
   startTime: number;     // epoch ms
   lastActive: number;    // epoch ms
   duration: number;      // in seconds
+}
+
+// ============================================
+// Multi-Tenant Types (StockSight SaaS)
+// ============================================
+
+// ---------- Tenant Subscription (stored on tenant doc, not user doc) ----------
+export interface TenantSubscription {
+  planTier: PlanTier;
+  status: SubscriptionStatus;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  currentPeriodEnd: Timestamp;
+  cancelAtPeriodEnd: boolean;
+}
+
+// ---------- Tenant Document ----------
+export interface TenantDoc {
+  id: string;
+  slug: string;
+  businessName: string;
+  logoURL?: string;
+  currency: string;       // ISO 4217, default "KES"
+  timezone: string;       // IANA, default "Africa/Nairobi"
+  createdAt: Timestamp;
+  createdBy: string;      // owner uid
+  subscription?: TenantSubscription;
+}
+
+// ---------- Tenant Member (per-tenant user membership document) ----------
+export interface TenantMember {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  role: UserRole;
+  status: UserStatus;
+  permissions?: Partial<GranularPermissions>;
+  adminMessage?: string;
+  adminMessageRead?: boolean;
+  adminNote?: string;
+  createdAt: Timestamp;
+}
+
+// ---------- Product Catalog ----------
+export interface Product {
+  id: string;
+  name: string;
+  unit: string;
+  price: number;
+  isActive: boolean;
+  createdAt: Timestamp;
+  createdBy: string;
+}
+
+export interface ProductFormData {
+  name: string;
+  unit: string;
+  price: number;
+  isActive: boolean;
+}
+
+// ---------- Sale Line (line item in a sale — replaces flat SaleItems for new sales) ----------
+export interface SaleLine {
+  id?: string;
+  productId: string;
+  productName: string;     // denormalized snapshot at sale time
+  quantity: number;        // 1–9999
+  unitPrice: number;       // price at time of sale
+  lineTotal: number;       // quantity * unitPrice, rounded to 2dp
+}
+
+// ---------- Invitation ----------
+export interface Invitation {
+  id: string;
+  email: string;
+  role: UserRole;
+  invitedBy: string;       // uid of inviter
+  expiresAt: Timestamp;
+  tenantId: string;
+  tenantSlug: string;
+}
+
+// ---------- Tenant Context ----------
+export interface TenantContextType {
+  tenantId: string;
+  tenantSlug: string;
+  businessName: string;
+  logoURL: string | null;
+  currency: string;
+  timezone: string;
+  subscription: TenantSubscription | null;
+  memberRole: UserRole;
+  memberStatus: UserStatus;
+  memberPermissions: Partial<GranularPermissions>;
+  loading: boolean;
+  canAccess: (tier: PlanTier) => boolean;
 }
 
