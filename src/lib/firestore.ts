@@ -21,7 +21,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { Customer, CustomerFormData, Sale, SaleFormData, SaleItems, SaleTotals } from "@/types";
-import { calculateTotals, generateSaleNumberLegacy } from "@/utils/pricing";
+import { calculateTotals, generateSaleNumberLegacy, generateSaleNumber, PRODUCTS } from "@/utils/pricing";
 
 // ---------- Customer Operations ----------
 
@@ -567,8 +567,10 @@ export async function deleteSaleT(
   tenantId: string,
   id: string
 ): Promise<void> {
-  const docRef = doc(db, "tenants", tenantId, "sales", id);
-  await deleteDoc(docRef);
+  const linesRef = collection(db, "tenants", tenantId, "sales", id, "saleLines");
+  const linesSnap = await getDocs(linesRef);
+  await Promise.all(linesSnap.docs.map((line) => deleteDoc(line.ref)));
+  await deleteDoc(doc(db, "tenants", tenantId, "sales", id));
 }
 
 /**
@@ -621,6 +623,142 @@ export async function getCustomerSalesT(
   );
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Sale));
+}
+
+// ---------- Tenant-Scoped Sale Functions ----------
+
+/**
+ * Build the normalized saleLines from the existing SaleFormData shape.
+ * The legacy quantity fields remain on the sale document for compatibility,
+ * while saleLines provide the tenant-scoped normalized model.
+ */
+function buildSaleLines(data: SaleFormData) {
+  return PRODUCTS
+    .map((product) => ({
+      productId: product.key,
+      productName: product.label,
+      quantity: Number(data[product.key] ?? 0),
+      unitPrice: product.price,
+      lineTotal: Math.round(Number(data[product.key] ?? 0) * product.price * 100) / 100,
+    }))
+    .filter((line) => line.quantity > 0);
+}
+
+/** Add a new sale inside a tenant. */
+export async function addSaleT(
+  tenantId: string,
+  tenantSlug: string,
+  data: SaleFormData,
+  userId: string
+): Promise<string> {
+  const items: SaleItems = {
+    cookedFood: data.cookedFood,
+    bread: data.bread,
+    bread25: data.bread25 ?? 0,
+    meat25: data.meat25,
+    meat30: data.meat30,
+    meat40: data.meat40 ?? 0,
+    bones: data.bones,
+    bones10: data.bones10 ?? 0,
+    bones13: data.bones13 ?? 0,
+    gradeA: data.gradeA,
+    veggies: data.veggies,
+    unga: data.unga ?? 0,
+    BSF: data.BSF ?? 0,
+  };
+
+  const totals = calculateTotals(items);
+  const saleNumber = generateSaleNumber(tenantSlug);
+  const saleRef = await addDoc(collection(db, "tenants", tenantId, "sales"), {
+    saleNumber,
+    customerId: data.customerId,
+    customerName: data.customerName,
+    ...items,
+    ...totals,
+    createdBy: userId,
+    createdAt: data.saleDate
+      ? Timestamp.fromDate(new Date(data.saleDate))
+      : serverTimestamp(),
+  });
+
+  const lines = buildSaleLines(data);
+  if (lines.length > 0) {
+    await Promise.all(
+      lines.map((line) =>
+        setDoc(
+          doc(db, "tenants", tenantId, "sales", saleRef.id, "saleLines", line.productId),
+          line
+        )
+      )
+    );
+  }
+
+  return saleRef.id;
+}
+
+/** Get one tenant sale and its normalized saleLines. */
+export async function getSaleT(
+  tenantId: string,
+  id: string
+): Promise<Sale | null> {
+  const saleRef = doc(db, "tenants", tenantId, "sales", id);
+  const snap = await getDoc(saleRef);
+  if (!snap.exists()) return null;
+
+  const linesSnap = await getDocs(
+    collection(db, "tenants", tenantId, "sales", id, "saleLines")
+  );
+  const lines = linesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  return { id: snap.id, ...snap.data(), lines } as Sale;
+}
+
+/** Update a tenant sale and replace its normalized saleLines. */
+export async function updateSaleT(
+  tenantId: string,
+  id: string,
+  data: SaleFormData
+): Promise<void> {
+  const items: SaleItems = {
+    cookedFood: data.cookedFood,
+    bread: data.bread,
+    bread25: data.bread25 ?? 0,
+    meat25: data.meat25,
+    meat30: data.meat30,
+    meat40: data.meat40 ?? 0,
+    bones: data.bones,
+    bones10: data.bones10 ?? 0,
+    bones13: data.bones13 ?? 0,
+    gradeA: data.gradeA,
+    veggies: data.veggies,
+    unga: data.unga ?? 0,
+    BSF: data.BSF ?? 0,
+  };
+
+  const totals = calculateTotals(items);
+  const updateData: Record<string, unknown> = {
+    customerId: data.customerId,
+    customerName: data.customerName,
+    ...items,
+    ...totals,
+  };
+
+  if (data.saleDate) {
+    updateData.createdAt = Timestamp.fromDate(new Date(data.saleDate));
+  }
+
+  await updateDoc(doc(db, "tenants", tenantId, "sales", id), updateData);
+
+  const linesRef = collection(db, "tenants", tenantId, "sales", id, "saleLines");
+  const existing = await getDocs(linesRef);
+  await Promise.all(existing.docs.map((line) => deleteDoc(line.ref)));
+
+  const lines = buildSaleLines(data);
+  await Promise.all(
+    lines.map((line) =>
+      setDoc(doc(db, "tenants", tenantId, "sales", id, "saleLines", line.productId), line)
+    )
+  );
 }
 
 // ---------- Tenant-Scoped Receival Functions ----------
