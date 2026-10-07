@@ -16,7 +16,7 @@ import {
   User,
   ChevronDown,
 } from "lucide-react";
-
+import { useOptionalTenant } from "@/contexts/TenantContext";
 interface NavbarProps {
   onMenuToggle: () => void;
 }
@@ -26,6 +26,7 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const tenant = useOptionalTenant();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -120,7 +121,7 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
                 <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
 
                 <Link
-                  href="/profile"
+                  href={tenant ? `/${tenant.tenantSlug}/profile` : "/profile"}
                   onClick={() => setIsOpen(false)}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-750 transition-colors"
                 >

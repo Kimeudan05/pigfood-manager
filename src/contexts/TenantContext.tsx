@@ -257,3 +257,17 @@ export function useTenant(): TenantContextType {
   }
   return context;
 }
+
+/**
+ * Optional tenant hook.
+ *
+ * Returns the current tenant when the component is rendered
+ * inside a TenantProvider, otherwise returns null.
+ *
+ * This is useful for shared components such as Sidebar/Navbar
+ * that are rendered by both legacy protected routes and
+ * tenant-scoped routes.
+ */
+export function useOptionalTenant(): TenantContextType | null {
+  return useContext(TenantContext) ?? null;
+}
